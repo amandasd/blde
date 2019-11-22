@@ -18,7 +18,8 @@
 //TODO: OpenMP
 //TODO: cmake
 //TODO: testar se eh PROFILE, etc...
-//TODO: VAR
+//TODO: ver se vale a pena separar os ifs
+//TODO: FUNCTION
 
 using namespace std;
 
@@ -42,8 +43,7 @@ void blde_init( int argc, char** argv )
 
    Opts.Int.Add( "-t", "--threads", -1, 0);
 
-   //TODO: pq o NULL? Como funciona essas opcoes?
-   Opts.String.Add( "-function", "", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008", "1009", NULL );
+   Opts.String.Add( "-function", "", "", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008", "1009", NULL );
 
    // processing the command-line
    Opts.Process();
@@ -143,6 +143,7 @@ void blde_evolve()
       //printf("\n");
 
       //TODO: repensar esse loop como um outro kernel, pois assim economizaria na transferência de dados do popL, VF e VL entre CPU e GPU
+      //TODO: e nao precisaria gerar a funcao evaluate e etc usando python
 
 //#pragma omp parallel for
       for( int i = 0; i < data.population_leader_size; i++ )
@@ -184,7 +185,14 @@ void blde_evolve()
       }                
       // testa criterio de parada
       // end
+
+      if (data.verbose)
+      {
+         int idx = best_individual( fit_popL );
+         printf( "\n[%d] %.12f :: %.12f", g, fit_popL[idx], blde_evaluate( idx, 2, popL, popLValoresF ) ); 
+      }
 	}
+   printf( "\n" ); 
 
    // best individual
    // start

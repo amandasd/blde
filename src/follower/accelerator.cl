@@ -91,9 +91,13 @@ blde( __global real_t* popL, __global real_t* gl_popF, __local real_t* lo_popF, 
             seed = aleatorio(seed);
             if( n == jRand || (seed/(real_t)RAND_MAX < CR) )
             {	
-               // TODO: var usa ifdef (VAR) e passa como opcao do build qual esta definido
-               uL[n] = popL[idx[0] * DIML + n] + F*(popL[idx[1] * DIML + n] - popL[idx[2] * DIML + n]); //DE/rand/1/bin
-               //uL[n] = popL[gr_id * DIML + n] + F*(popL[idx[0] * DIML + n] - popL[gr_id * DIML + n]) + F*(popL[idx[1] * DIML + n] - popL[idx[2] * DIML + n]); //DE/target-to-rand/1/bin
+#if defined(VARIANT_rand) //DE/rand/1/bin
+               uL[n] = popL[idx[0] * DIML + n] + F*(popL[idx[1] * DIML + n] - popL[idx[2] * DIML + n]); 
+#elif defined(VARIANT_target_to_rand) //DE/target-to-rand/1/bin
+               uL[n] = popL[gr_id * DIML + n] + F*(popL[idx[0] * DIML + n] - popL[gr_id * DIML + n]) + F*(popL[idx[1] * DIML + n] - popL[idx[2] * DIML + n]); 
+#else
+   "Variant not supported"
+#endif
                if( uL[n] < getLower(1, n) )
                {
                   uL[n] = getLower(1, n);
@@ -185,9 +189,13 @@ blde( __global real_t* popL, __global real_t* gl_popF, __local real_t* lo_popF, 
                seed = aleatorio(seed);
                if( (i == jRand) || (seed/(real_t)RAND_MAX < CR) )
                {	
-                  // TODO: var usa ifdef (VAR) e passa como opcao do build qual esta definido
-                  lo_popF[n + i * POPF_SIZE] = lo_popF[idx1 + i * POPF_SIZE] + F*(lo_popF[idx2 + i * POPF_SIZE] - lo_popF[idx3 + i * POPF_SIZE]); //DE/rand/1/bin
-                  //lo_popF[n + i * POPF_SIZE] = lo_popF[n + i * POPF_SIZE] + F*(lo_popF[idx1 + i * POPF_SIZE] - lo_popF[n + i * POPF_SIZE]) + F*(lo_popF[idx2 + i * POPF_SIZE] - lo_popF[idx3 + i * POPF_SIZE]); //DE/target-to-rand/1/bin
+#if defined(VARIANT_rand) //DE/rand/1/bin
+                  lo_popF[n + i * POPF_SIZE] = lo_popF[idx1 + i * POPF_SIZE] + F*(lo_popF[idx2 + i * POPF_SIZE] - lo_popF[idx3 + i * POPF_SIZE]);
+#elif defined(VARIANT_target_to_rand) //DE/target-to-rand/1/bin
+                  lo_popF[n + i * POPF_SIZE] = lo_popF[n + i * POPF_SIZE] + F*(lo_popF[idx1 + i * POPF_SIZE] - lo_popF[n + i * POPF_SIZE]) + F*(lo_popF[idx2 + i * POPF_SIZE] - lo_popF[idx3 + i * POPF_SIZE]);
+#else
+   "Variant not supported"
+#endif
                   if( lo_popF[n + i * POPF_SIZE] < getLower(2, i) )
                   {
                      lo_popF[n + i * POPF_SIZE] = getLower(2, i);

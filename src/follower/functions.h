@@ -22,12 +22,10 @@ real_t getLower(int nivel, int indice)
 {
    if (nivel == 1)
    {
-
       return -5.;
    }
    else 
    {
-
       if (indice < q)
       {
         return -5.;
@@ -43,12 +41,10 @@ real_t getUpper(int nivel, int indice)
 {
    if (nivel == 1)
    {
-
       return 10.;
    }
    else 
    {
-
       if (indice < q)
       {
           return 10.;

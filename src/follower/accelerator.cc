@@ -42,7 +42,7 @@ std::string getAbsoluteDirectory(std::string filepath)
 /** ***************************** TYPES ****************************** **/
 /** ****************************************************************** **/
 
-namespace { static struct t_data { int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; int num_generation_follower; real_t crossover_rate; real_t f; int r; int p; int q; int s; std::string strategy; unsigned local_size; unsigned global_size; cl::Device device; cl::Context context; cl::Kernel kernel; cl::CommandQueue queue; cl::Buffer buffer_popL; cl::Buffer buffer_popF; cl::Buffer buffer_seed; cl::Buffer buffer_vf; cl::Buffer buffer_vl; std::string executable_directory; bool verbose; } data; };
+namespace { static struct t_data { int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; int num_generation_follower; real_t crossover_rate; real_t f; int r; int p; int q; int s; std::string variant; unsigned local_size; unsigned global_size; cl::Device device; cl::Context context; cl::Kernel kernel; cl::CommandQueue queue; cl::Buffer buffer_popL; cl::Buffer buffer_popF; cl::Buffer buffer_seed; cl::Buffer buffer_vf; cl::Buffer buffer_vl; std::string executable_directory; bool verbose; } data; };
 
 /** ****************************************************************** **/
 /** *********************** AUXILIARY FUNCTION *********************** **/
@@ -199,7 +199,6 @@ int build_kernel( int maxlocalsize )
       "#define GENF_NUM " + util::ToString( data.num_generation_follower ) + "\n#define CR " + util::ToString( data.crossover_rate ) + "\n" + 
       "#define F " + util::ToString( data.f ) + "\n#define RAND_MAX " + util::ToString( RAND_MAX ) + "\n#define r " + util::ToString( data.r ) + "\n" + 
       "#define p " + util::ToString( data.p ) + "\n#define q " + util::ToString( data.q ) + "\n#define s " + util::ToString( data.s ) + "\n" + 
-      //"#define VAR " + data.strategy + "\n" +
       kernel_str;
    //cout << program_str << endl;
 
@@ -219,9 +218,9 @@ int build_kernel( int maxlocalsize )
       //std::string flags = std::string(" -I" + data.executable_directory + std::string(xstr(INCLUDE_RELATIVE_DIR)));
       std::string flags = std::string( " -I" + data.executable_directory + std::string("/follower") 
 #ifdef CONFIG_USE_DOUBLE
-      + " -DCONFIG_USE_DOUBLE "
+      + " -DCONFIG_USE_DOUBLE " 
 #endif
-      );
+      + "-DVARIANT_" + util::ToLower( data.variant ) );
       program.build( device, flags.c_str() );
    }
    catch( cl::Error& e )
@@ -334,8 +333,9 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    Opts.Float.Add( "-cp", "--crossover-probability", 0.90, 0.0, 1.0 );
    Opts.Float.Add( "-f", "--constant", 0.90, 0.0, 1.0 );
 
-   //TODO: pq o NULL? Como funciona essas opcoes?
-   Opts.String.Add( "-strategy", "", "rand", "best", "target-to-rand", "target-to-best", NULL );
+   //TODO
+   Opts.String.Add( "-variant", "", "RAND", "rand", "TARGET_TO_RAND", "target_to_rand", NULL );
+   //Opts.String.Add( "-variant", "", "RAND", "rand", "BEST", "best", "TARGET_TO_RAND", "target_to_rand", "TARGET_TO_BEST", "target_to_best", NULL );
 
    Opts.Process();
 
@@ -352,7 +352,7 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    data.crossover_rate = Opts.Float.Get("-cp");
    data.f = Opts.Float.Get("-f");
 
-   data.strategy = Opts.String.Get("-strategy");
+   data.variant = Opts.String.Get("-variant");
 
    data.r = r;
    data.p = p;
