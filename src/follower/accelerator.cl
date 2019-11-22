@@ -9,6 +9,16 @@
 #endif
 #endif /* CONFIG_USE_DOUBLE */
 
+#if defined(CONFIG_USE_DOUBLE)
+   #if ! defined(DOUBLE_SUPPORT_AVAILABLE)
+      #error "The device does not support double"
+   #else
+      typedef double real_t;
+   #endif
+#else
+   typedef float real_t;
+#endif
+
 #include <functions.h>
 
 __kernel void

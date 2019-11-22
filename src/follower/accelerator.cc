@@ -14,6 +14,9 @@
 #include "accelerator.h"
 #include "../util/CmdLineParser.h"
 #include "../util/Util.h"
+
+#include "../definitions.h"
+
 //TODO
 //#include <Poco/Path.h>
 

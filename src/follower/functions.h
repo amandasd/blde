@@ -1,8 +1,6 @@
 #ifndef _FUNCTIONS_H_
 #define _FUNCTIONS_H_
 
-#include "definitions.h"
-
 #ifndef M
    #define M 2147483648
 #endif
