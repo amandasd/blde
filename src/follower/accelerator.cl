@@ -35,6 +35,8 @@ blde( __global real_t* popL, __global real_t* gl_popF, __local real_t* lo_popF, 
 
    int n;
 
+   __local int idx[3]; 
+
    // 1 uL by group -> uL is represented by gr_id 
    // each group has #local_size work itens (lo_id)
    // local_size can be <= POPF_SIZE and local_size can be < DIML or DIMF.
@@ -65,7 +67,6 @@ blde( __global real_t* popL, __global real_t* gl_popF, __local real_t* lo_popF, 
    {
       // leader generation -> uL is represented by gr_id
       // start
-      __local int idx[3]; 
       if( lo_id == 0 )
       {
 	      do
