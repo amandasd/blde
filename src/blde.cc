@@ -35,7 +35,7 @@ void blde_init( int argc, char** argv )
 
    Opts.Bool.Add( "-acc" );
 
-   Opts.Int.Add( "-gl", "--generations-leader", 10, 0, std::numeric_limits<int>::max() );
+   Opts.Int.Add( "-gl", "--generation-leader", 10, 0, std::numeric_limits<int>::max() );
    Opts.Int.Add( "-pls", "--population-leader-size", 64, 1, std::numeric_limits<int>::max() );
 
    Opts.Int.Add( "-dl", "--dimension-leader", 8, 0, std::numeric_limits<int>::max() );
@@ -132,8 +132,7 @@ void blde_evolve()
    acc_follower( popLValoresF, VL, NULL, -1, 1 );
 
    //TODO: openMP
-	for( int g = 0; g < 2; g++ )
-	//for( int g = 0; g < data.num_generation_leader; g++ )
+	for( int g = 0; g < data.num_generation_leader; g++ )
    {                           
       acc_follower( VF, VL, popL, g, 0 );
 

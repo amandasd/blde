@@ -223,7 +223,7 @@ int build_kernel( int maxlocalsize )
 #ifdef CONFIG_USE_DOUBLE
       + " -DCONFIG_USE_DOUBLE " 
 #endif
-      + "-DVARIANT_" + util::ToLower( data.variant ) );
+      + " -DVARIANT_" + util::ToLower( data.variant ) );
       program.build( device, flags.c_str() );
    }
    catch( cl::Error& e )
@@ -324,7 +324,7 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    Opts.Int.Add( "-cl-mls", "--cl-max-local-size", -1 );
    Opts.String.Add( "-type" );
 
-   Opts.Int.Add( "-gf", "--generations-follower", 10, 0, std::numeric_limits<int>::max() );
+   Opts.Int.Add( "-gf", "--generation-follower", 10, 0, std::numeric_limits<int>::max() );
    Opts.Int.Add( "-pfs", "--population-follower-size", 64, 1, std::numeric_limits<int>::max() );
 
    Opts.Int.Add( "-pls", "--population-leader-size", 64, 1, std::numeric_limits<int>::max() );
@@ -333,8 +333,8 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    Opts.Int.Add( "-df", "--dimension-follower", 8, 0, std::numeric_limits<int>::max() );
 
    //TODO: checar valores com a Jaque
-   Opts.Float.Add( "-cp", "--crossover-probability", 0.90, 0.0, 1.0 );
-   Opts.Float.Add( "-f", "--constant", 0.90, 0.0, 1.0 );
+   Opts.Float.Add( "-cr", "--crossover-rate", 0.90, 0.0, 1.0 );
+   Opts.Float.Add( "-f", "--constant-f", 0.90, 0.5, 1.0 );
 
    //TODO
    Opts.String.Add( "-variant", "", "RAND", "rand", "TARGET_TO_RAND", "target_to_rand", NULL );
@@ -352,7 +352,7 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    data.leader_dimension = Opts.Int.Get("-dl");
    data.follower_dimension = Opts.Int.Get("-df");
 
-   data.crossover_rate = Opts.Float.Get("-cp");
+   data.crossover_rate = Opts.Float.Get("-cr");
    data.f = Opts.Float.Get("-f");
 
    data.variant = Opts.String.Get("-variant");
