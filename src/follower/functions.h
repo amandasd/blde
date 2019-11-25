@@ -53,8 +53,7 @@ real_t getUpper(int nivel, int indice)
       }
    }
 }
-
-real_t evaluate_transpose(int idx, int nivel, local real_t* uL, local real_t* popF)
+real_t evaluate_transpose_leader(int idx, int nivel, global real_t* uL, global real_t* uF)
 {
    real_t F1 = 0.0, F2 = 0.0, F3 = 0.0;
 
@@ -63,11 +62,11 @@ real_t evaluate_transpose(int idx, int nivel, local real_t* uL, local real_t* po
 
    for(int i = 0; i < DIML; i++)
    {
-      x[i] = uL[i];                        
+      x[i] = uL[idx + i * POPL_SIZE];                        
    }                    
    for(int i = 0; i < DIMF; i++)  
    {                       
-      y[i] = popF[idx + i * POPF_SIZE];
+      y[i] = uF[idx + i * POPL_SIZE];
    }                                         
 
    for(int i = 0; i < p; i++)
@@ -102,4 +101,35 @@ real_t evaluate_transpose(int idx, int nivel, local real_t* uL, local real_t* po
    return F1+F2+F3;
 }
 
+real_t evaluate_transpose_follower(int idx, local real_t* uL, local real_t* popF)
+{
+   real_t F1 = 0.0, F2 = 0.0, F3 = 0.0;
+
+   real_t x[DIML];
+   real_t y[DIMF];
+
+   for(int i = 0; i < DIML; i++)
+   {
+      x[i] = uL[i];                        
+   }                    
+   for(int i = 0; i < DIMF; i++)  
+   {                       
+      y[i] = popF[idx + i * POPF_SIZE];
+   }                                         
+
+   for(int i = 0; i < p; i++)
+   {
+      F1 += (x[i]*x[i]);
+   }
+   for(int i = 0; i < q; i++)
+   {
+      F2 += (y[i]*y[i]);
+   }                           
+   for(int i = 0; i < r; i++)
+   {                        
+      F3 += ((x[p+i]-tan(y[q+i]))*(x[p+i]-tan(y[q+i])));
+   }                    
+
+   return F1+F2+F3;
+}
 #endif

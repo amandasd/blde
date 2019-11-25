@@ -45,7 +45,7 @@ std::string getAbsoluteDirectory(std::string filepath)
 /** ***************************** TYPES ****************************** **/
 /** ****************************************************************** **/
 
-namespace { static struct t_data { int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; int num_generation_follower; real_t crossover_rate; real_t f; int r; int p; int q; int s; std::string variant; unsigned local_size; unsigned global_size; cl::Device device; cl::Context context; cl::Kernel kernel; cl::CommandQueue queue; cl::Buffer buffer_popL; cl::Buffer buffer_popF; cl::Buffer buffer_seed; cl::Buffer buffer_vf; cl::Buffer buffer_vl; std::string executable_directory; bool verbose; } data; };
+namespace { static struct t_data { int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; int num_generation_follower; real_t crossover_rate; real_t f; int r; int p; int q; int s; std::string variant; unsigned local_size; unsigned global_size; cl::Device device; cl::Context context; cl::Kernel kernel_seed; cl::Kernel kernel_follower; cl::Kernel kernel_leader; cl::CommandQueue queue; cl::Buffer seed_buffer; cl::Buffer follower_buffer_popL; cl::Buffer follower_buffer_popLValoresF; cl::Buffer follower_buffer_popF; cl::Buffer follower_buffer_vf; cl::Buffer follower_buffer_vl; cl::Buffer leader_buffer_fit_popL; cl::Buffer leader_buffer_fit_popLValoresF; std::string executable_directory; bool verbose; } data; };
 
 /** ****************************************************************** **/
 /** *********************** AUXILIARY FUNCTION *********************** **/
@@ -262,7 +262,9 @@ int build_kernel( int maxlocalsize )
    }
    // One leader individual per work-group
    data.global_size = data.population_leader_size * data.local_size;
-   data.kernel = cl::Kernel( program, "blde" );
+   data.kernel_seed     = cl::Kernel( program, "seed" );
+   data.kernel_follower = cl::Kernel( program, "follower" );
+   data.kernel_leader   = cl::Kernel( program, "leader" );
 
    if (data.verbose) {
       std::cout << "\nDevice: " << data.device.getInfo<CL_DEVICE_NAME>() << ", Compute units: " << max_cu << ", Max local size: " << max_local_size << std::endl;
@@ -274,33 +276,40 @@ int build_kernel( int maxlocalsize )
 
 // -----------------------------------------------------------------------------
 
-void create_buffers( )
+void create_buffers( int seed )
 {
    // Buffer (memory on the device) of the programs
-   data.buffer_popL = cl::Buffer( data.context, CL_MEM_READ_ONLY | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
-   data.buffer_popF = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_follower_size * data.follower_dimension * sizeof( real_t ) );
-   data.buffer_seed = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.global_size * sizeof( uint ) );
-   data.buffer_vf   = cl::Buffer( data.context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
-   data.buffer_vl   = cl::Buffer( data.context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
+   data.seed_buffer = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.global_size * sizeof( uint ) );
 
-   data.kernel.setArg( 0, data.buffer_popL );
-   data.kernel.setArg( 1, data.buffer_popF );
-   data.kernel.setArg( 2, data.population_follower_size * data.follower_dimension * sizeof( real_t ), NULL );
-   data.kernel.setArg( 3, data.population_follower_size * sizeof( real_t ), NULL );
-   data.kernel.setArg( 4, data.population_follower_size * sizeof( int ), NULL );
-   data.kernel.setArg( 5, data.leader_dimension * sizeof( real_t ), NULL );
-   data.kernel.setArg( 6, data.buffer_seed );
-   data.kernel.setArg( 7, data.buffer_vf );
-   data.kernel.setArg( 8, data.buffer_vl );
+   data.follower_buffer_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
+   data.follower_buffer_popLValoresF = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
+   data.follower_buffer_popF = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_follower_size * data.follower_dimension * sizeof( real_t ) );
+   data.follower_buffer_vf = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
+   data.follower_buffer_vl = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
 
-   uint* vector = new uint[data.global_size];
-   for( int i = 0; i < data.global_size; i++ )
-   {
-      vector[i] = uint(rand());
-   }
-   //TODO: perguntar pro Douglas o que ele acha desse comando aqui ou no acc_follower
-   data.queue.enqueueWriteBuffer( data.buffer_seed, CL_TRUE, 0, data.global_size * sizeof( uint ), vector, NULL );
-   delete[] vector;
+   data.leader_buffer_fit_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * sizeof( real_t ) );
+   data.leader_buffer_fit_popLValoresF = cl::Buffer( data.context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * sizeof( real_t ) );
+
+   data.kernel_seed.setArg( 0, seed );
+   data.kernel_seed.setArg( 1, data.seed_buffer );
+
+   data.kernel_follower.setArg( 0, data.follower_buffer_popL );
+   data.kernel_follower.setArg( 1, data.follower_buffer_popLValoresF );
+   data.kernel_follower.setArg( 2, data.follower_buffer_popF );
+   data.kernel_follower.setArg( 3, data.population_follower_size * data.follower_dimension * sizeof( real_t ), NULL );
+   data.kernel_follower.setArg( 4, data.population_follower_size * sizeof( real_t ), NULL );
+   data.kernel_follower.setArg( 5, data.population_follower_size * sizeof( int ), NULL );
+   data.kernel_follower.setArg( 6, data.leader_dimension * sizeof( real_t ), NULL );
+   data.kernel_follower.setArg( 7, data.seed_buffer );
+   data.kernel_follower.setArg( 8, data.follower_buffer_vf );
+   data.kernel_follower.setArg( 9, data.follower_buffer_vl );
+
+   data.kernel_leader.setArg( 0, data.follower_buffer_popL );
+   data.kernel_leader.setArg( 1, data.follower_buffer_popLValoresF );
+   data.kernel_leader.setArg( 2, data.follower_buffer_vf );
+   data.kernel_leader.setArg( 3, data.follower_buffer_vl );
+   data.kernel_leader.setArg( 4, data.leader_buffer_fit_popL );
+   data.kernel_leader.setArg( 5, data.leader_buffer_fit_popLValoresF );
 }
 
 
@@ -323,6 +332,8 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    Opts.Int.Add( "-cl-d", "--cl-device-id", -1, 0 );
    Opts.Int.Add( "-cl-mls", "--cl-max-local-size", -1 );
    Opts.String.Add( "-type" );
+
+   Opts.Int.Add( "-s", "--seed", 0, 0, std::numeric_limits<long>::max() );
 
    Opts.Int.Add( "-gf", "--generation-follower", 10, 0, std::numeric_limits<int>::max() );
    Opts.Int.Add( "-pfs", "--population-follower-size", 64, 1, std::numeric_limits<int>::max() );
@@ -395,44 +406,64 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
       return 1;
    }
 
-   create_buffers( );
+   int seed = Opts.Int.Get("-s") == 0 ? time( NULL ) : Opts.Int.Get("-s");
+   create_buffers( seed );
 
    return 0;
 }
 
 // -----------------------------------------------------------------------------
-void acc_follower( real_t* VF, real_t* VL, real_t* popL, int generation, int initialization )
+void acc_seed()
 {
-   data.kernel.setArg( 9, initialization );
-
-   try {
-      // Begin kernel execution
-      data.queue.enqueueNDRangeKernel( data.kernel, cl::NDRange(), cl::NDRange( data.global_size ), cl::NDRange( data.local_size ), NULL );
+   try 
+   {
+      // ---------- begin kernel execution
+      data.queue.enqueueNDRangeKernel( data.kernel_seed, cl::NDRange(), cl::NDRange( data.global_size ), cl::NDRange(), NULL );
    }
    catch( cl::Error& e )
    {
-      cerr << "\nERROR(kernel): " << e.what() << " ( " << e.err() << " )\n";
+      cerr << "\nERROR(kernel_seed): " << e.what() << " ( " << e.err() << " )\n";
+      throw;
+   }
+   // Wait until the kernel has finished
+   data.queue.finish();
+}
+
+// -----------------------------------------------------------------------------
+void acc_follower( int initialization )
+{
+   data.kernel_follower.setArg( 10, initialization );
+
+   try {
+      // Begin kernel execution
+      data.queue.enqueueNDRangeKernel( data.kernel_follower, cl::NDRange(), cl::NDRange( data.global_size ), cl::NDRange( data.local_size ), NULL );
+   }
+   catch( cl::Error& e )
+   {
+      cerr << "\nERROR(kernel_follower): " << e.what() << " ( " << e.err() << " )\n";
+      throw;
+   }
+   // Wait until the kernel has finished
+   data.queue.finish();
+}
+
+// -----------------------------------------------------------------------------
+void acc_leader( real_t* fit_popL, real_t* fit_popLValoresF, int generation )
+{
+   data.kernel_leader.setArg( 6, generation );
+
+   try {
+      // Begin kernel execution
+      data.queue.enqueueNDRangeKernel( data.kernel_leader, cl::NDRange(), cl::NDRange( data.population_leader_size ), cl::NDRange(), NULL );
+   }
+   catch( cl::Error& e )
+   {
+      cerr << "\nERROR(kernel_leader): " << e.what() << " ( " << e.err() << " )\n";
       throw;
    }
    // Wait until the kernel has finished
    data.queue.finish();
 
-   data.queue.enqueueReadBuffer( data.buffer_vf, CL_TRUE, 0, data.population_leader_size * data.follower_dimension * sizeof( real_t ), VF );
-
-   if( !initialization )
-   {
-      data.queue.enqueueReadBuffer( data.buffer_vl, CL_TRUE, 0, data.population_leader_size * data.leader_dimension * sizeof( real_t ), VL );
-   }
-
-   if( generation == 0 && !initialization )
-   {
-      data.queue.enqueueReadBuffer( data.buffer_popL, CL_TRUE, 0, data.population_leader_size * data.leader_dimension * sizeof( real_t ), popL );
-   }
-   else
-   {
-      if( !initialization )
-      {
-         data.queue.enqueueWriteBuffer( data.buffer_popL, CL_TRUE, 0, data.population_leader_size * data.leader_dimension * sizeof( real_t ), popL, NULL );
-      }
-   }
+   data.queue.enqueueReadBuffer( data.leader_buffer_fit_popL, CL_TRUE, 0, data.population_leader_size * sizeof( real_t ), fit_popL );
+   data.queue.enqueueReadBuffer( data.leader_buffer_fit_popLValoresF, CL_TRUE, 0, data.population_leader_size * sizeof( real_t ), fit_popLValoresF );
 }

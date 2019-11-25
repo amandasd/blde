@@ -118,62 +118,22 @@ int best_individual( real_t* fitness )
 
 void blde_evolve()
 {
-   real_t* popL = new real_t[data.population_leader_size * data.leader_dimension]; 
-   real_t* popLValoresF = new real_t[data.population_leader_size * data.follower_dimension];
-   real_t* VF = new real_t[data.population_leader_size * data.follower_dimension];
-   real_t* VL = new real_t[data.population_leader_size * data.leader_dimension];
+   //real_t* popL = new real_t[data.population_leader_size * data.leader_dimension]; 
+   //real_t* popLValoresF = new real_t[data.population_leader_size * data.follower_dimension];
    real_t* fit_popL = new real_t[data.population_leader_size]; 
-   real_t  fit_VL;
+   real_t* fit_popLValoresF = new real_t[data.population_leader_size]; 
 
-   // solution S is a array of size D
-   // popL, popLValoreF, VF e VL => S0D0 | S0D1 | S0D2 | ... | S1D0 | S1D1 | S1D2 | ...
+   acc_seed();
 
-   //TODO: sequential
-   acc_follower( popLValoresF, VL, NULL, -1, 1 );
+   acc_follower( 1 );
 
    //TODO: openMP
+   //TODO: creterio de parada -> nEval
 	for( int g = 0; g < data.num_generation_leader; g++ )
    {                           
-      acc_follower( VF, VL, popL, g, 0 );
+      acc_follower( 0 );
 
-      //printf("%d ", g);
-      //for( int j = 0; j < data.leader_dimension; j++ )
-      //   printf("%f ", popL[10 * data.leader_dimension + j]);
-      //printf("\n");
-
-      //TODO: repensar esse loop como um outro kernel, pois assim economizaria na transferência de dados do popL, VF e VL entre CPU e GPU
-      //TODO: e nao precisaria gerar a funcao evaluate e etc usando python
-
-//#pragma omp parallel for
-      for( int i = 0; i < data.population_leader_size; i++ )
-      {
-         fit_VL = blde_evaluate( i, 1, VL, VF );
-         if( g == 0 ) {fit_popL[i] = blde_evaluate( i, 1, popL, popLValoresF );}
-
-         // The functions 1001, 1002, ..., 1008 are all minimization functions.
-         // They do not have any restriction. 
-	      if( fit_VL <= fit_popL[i] )
-         {
-            for( int j = 0; j < data.leader_dimension; j++ )
-            {
-               popL[i * data.leader_dimension + j] = VL[i * data.leader_dimension + j];
-            }
-            for( int j = 0; j < data.follower_dimension; j++ )
-            {
-               popLValoresF[i * data.follower_dimension + j] = VF[i * data.follower_dimension + j];
-            }
-            fit_popL[i] = fit_VL;
-         }
-
-         //TODO
-         // testa criterio de parada
-         // start
-         //if ( getNEval(1) == MAX_NFE_L){  
-         //    i = data.population_leader_size;
-         //} 
-         // testa criterio de parada
-         // end
-      }
+      acc_leader( fit_popL, fit_popLValoresF, g );
 
       // testa criterio de parada
       // start
@@ -187,37 +147,36 @@ void blde_evolve()
 
       if (data.verbose)
       {
-         int idx = best_individual( fit_popL );
-         printf( "\n[%d] %.12f :: %.12f", g, fit_popL[idx], blde_evaluate( idx, 2, popL, popLValoresF ) ); 
+         printf( "\n[%d] %.12f :: %.12f", g, fit_popL[idx], fit_popLValoresF[idx] ); 
       }
 	}
-   printf( "\n" ); 
+   //printf( "\n" ); 
 
    // best individual
    // start
-   int idx = best_individual( fit_popL );
+   //int idx = best_individual( fit_popL );
    // best individual
    // end
 
    // print best individual
    // start
-   cout << "[Leader] ";
-   for( int j = 0; j < data.leader_dimension; j++ ){
-      cout << popL[idx * data.leader_dimension + j] << " ";
-   }
-   cout << "Fitness: " << fit_popL[idx] << endl;
-   cout << "[Follower] ";
-   for( int j = 0; j < data.follower_dimension; j++ ){
-      cout << popLValoresF[idx * data.leader_dimension + j] << " ";
-   }
-   cout << "Fitness: " << blde_evaluate( idx, 2, popL, popLValoresF ) << endl;
+   //cout << "[Leader] ";
+   //for( int j = 0; j < data.leader_dimension; j++ ){
+   //   cout << popL[idx * data.leader_dimension + j] << " ";
+   //}
+   //cout << "Fitness: " << fit_popL[idx] << endl;
+   //cout << "[Follower] ";
+   //for( int j = 0; j < data.follower_dimension; j++ ){
+   //   cout << popLValoresF[idx * data.leader_dimension + j] << " ";
+   //}
+   //cout << "Fitness: " << blde_evaluate( idx, 2, popL, popLValoresF ) << endl;
    // print best individual
    // end
 
-   delete[] popL;
-   delete[] popLValoresF;
-   delete[] VF;
-   delete[] VL;
+   //delete[] popL;
+   //delete[] popLValoresF;
+   delete[] fit_popL;
+   delete[] fit_popLValoresF;
 }
 
 
