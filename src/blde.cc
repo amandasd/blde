@@ -9,6 +9,7 @@
 #include <fstream> 
 #include "follower/accelerator.h"
 #include "blde.h"
+#include "definitions.h"
 #include "util/CmdLineParser.h"
 #include "util/Util.h"
 //#ifdef _OPENMP
