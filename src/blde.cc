@@ -20,21 +20,17 @@
 //TODO: cmake
 //TODO: testar se eh PROFILE, etc...
 //TODO: ver se vale a pena separar os ifs
-//TODO: FUNCTION
+//TODO: FUNCTION (fazer do jeito que o Douglas sugeriu, como string para o kernel)
 
 using namespace std;
 
-namespace { static struct t_data { int num_generation_leader; int population_leader_size; int leader_dimension; int follower_dimension; int r; int p; int q; int s; int parallel_version; bool verbose; } data; };
-
-#include "blde_evaluate"
+namespace { static struct t_data { int num_generation_leader; int population_leader_size; int leader_dimension; int follower_dimension; int r; int p; int q; int s; bool verbose; } data; };
 
 void blde_init( int argc, char** argv ) 
 {
    CmdLine::Parser Opts( argc, argv );
 
    Opts.Bool.Add( "-v", "--verbose" );
-
-   Opts.Bool.Add( "-acc" );
 
    Opts.Int.Add( "-gl", "--generation-leader", 10, 0, std::numeric_limits<int>::max() );
    Opts.Int.Add( "-pls", "--population-leader-size", 64, 1, std::numeric_limits<int>::max() );
@@ -85,19 +81,10 @@ void blde_init( int argc, char** argv )
 //      omp_set_num_threads(Opts.Int.Get("-t"));
 //#endif
 
-   data.parallel_version = Opts.Bool.Get("-acc");
-   if( data.parallel_version )
+   if( acc_follower_init( argc, argv, data.r, data.p, data.q, data.s ) )
    {
-      if( acc_follower_init( argc, argv, data.r, data.p, data.q, data.s ) )
-      {
-         fprintf(stderr,"Error in initialization phase.\n");
-      }
+      fprintf(stderr,"Error in initialization phase.\n");
    }
-   //TODO
-   //else
-   //{
-   //   seq_follower_init( );
-   //}
 }
 
 int best_individual( real_t* fitness )
