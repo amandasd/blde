@@ -115,8 +115,7 @@ void blde_evolve()
 
    acc_follower( 1 );
 
-   //TODO: openMP
-   //TODO: creterio de parada -> nEval
+   //TODO: criterio de parada -> nEval
 	for( int g = 0; g < data.num_generation_leader; g++ )
    {                           
       acc_follower( 0 );
