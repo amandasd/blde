@@ -30,6 +30,6 @@ void acc_follower( int initialization );
 /** ************************************************************************************************** **/
 /**                                                                                                    **/
 /** ************************************************************************************************** **/
-void acc_leader( real_t* fit_popL, real_t* fit_popLValoresF, int generation );
+void acc_leader( real_t* fit_popL, real_t* fit_popLValoresF, int generation, real_t* popL, real_t* popLValoresF );
 
 #endif

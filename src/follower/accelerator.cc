@@ -331,7 +331,7 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    Opts.Int.Add( "-cl-mls", "--cl-max-local-size", -1 );
    Opts.String.Add( "-type" );
 
-   Opts.Int.Add( "-s", "--seed", 0, 0, std::numeric_limits<long>::max() );
+   Opts.Int.Add( "-seed", "", 0, 0, std::numeric_limits<long>::max() );
 
    Opts.Int.Add( "-gf", "--generation-follower", 10, 0, std::numeric_limits<int>::max() );
    Opts.Int.Add( "-pfs", "--population-follower-size", 64, 1, std::numeric_limits<int>::max() );
@@ -404,7 +404,8 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
       return 1;
    }
 
-   int seed = Opts.Int.Get("-s") == 0 ? time( NULL ) : Opts.Int.Get("-s");
+   int seed = Opts.Int.Get("-seed") == 0 ? time( NULL ) : Opts.Int.Get("-seed");
+   cout << seed << endl;
    create_buffers( seed );
 
    return 0;
@@ -446,7 +447,7 @@ void acc_follower( int initialization )
 }
 
 // -----------------------------------------------------------------------------
-void acc_leader( real_t* fit_popL, real_t* fit_popLValoresF, int generation )
+void acc_leader( real_t* fit_popL, real_t* fit_popLValoresF, int generation, real_t* popL, real_t* popLValoresF )
 {
    data.kernel_leader.setArg( 6, generation );
 
@@ -464,4 +465,6 @@ void acc_leader( real_t* fit_popL, real_t* fit_popLValoresF, int generation )
 
    data.queue.enqueueReadBuffer( data.leader_buffer_fit_popL, CL_TRUE, 0, data.population_leader_size * sizeof( real_t ), fit_popL );
    data.queue.enqueueReadBuffer( data.leader_buffer_fit_popLValoresF, CL_TRUE, 0, data.population_leader_size * sizeof( real_t ), fit_popLValoresF );
+   data.queue.enqueueReadBuffer( data.follower_buffer_popL, CL_TRUE, 0, data.population_leader_size * data.leader_dimension * sizeof( real_t ), popL );
+   data.queue.enqueueReadBuffer( data.follower_buffer_popLValoresF, CL_TRUE, 0, data.population_leader_size * data.follower_dimension * sizeof( real_t ), popLValoresF );
 }

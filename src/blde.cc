@@ -106,8 +106,8 @@ int best_individual( real_t* fitness )
 
 void blde_evolve()
 {
-   //real_t* popL = new real_t[data.population_leader_size * data.leader_dimension]; 
-   //real_t* popLValoresF = new real_t[data.population_leader_size * data.follower_dimension];
+   real_t* popL = new real_t[data.population_leader_size * data.leader_dimension]; 
+   real_t* popLValoresF = new real_t[data.population_leader_size * data.follower_dimension];
    real_t* fit_popL = new real_t[data.population_leader_size]; 
    real_t* fit_popLValoresF = new real_t[data.population_leader_size]; 
 
@@ -121,7 +121,7 @@ void blde_evolve()
    {                           
       acc_follower( 0 );
 
-      acc_leader( fit_popL, fit_popLValoresF, g );
+      acc_leader( fit_popL, fit_popLValoresF, g, popL, popLValoresF );
 
       // testa criterio de parada
       // start
@@ -138,31 +138,31 @@ void blde_evolve()
          printf( "\n[%d] %.12f :: %.12f", g, fit_popL[idx], fit_popLValoresF[idx] ); 
       }
 	}
-   //printf( "\n" ); 
+   printf( "\n" ); 
 
    // best individual
    // start
-   //int idx = best_individual( fit_popL );
+   int idx = best_individual( fit_popL );
    // best individual
    // end
 
    // print best individual
    // start
-   //cout << "[Leader] ";
-   //for( int j = 0; j < data.leader_dimension; j++ ){
-   //   cout << popL[idx * data.leader_dimension + j] << " ";
-   //}
-   //cout << "Fitness: " << fit_popL[idx] << endl;
-   //cout << "[Follower] ";
-   //for( int j = 0; j < data.follower_dimension; j++ ){
-   //   cout << popLValoresF[idx * data.leader_dimension + j] << " ";
-   //}
-   //cout << "Fitness: " << blde_evaluate( idx, 2, popL, popLValoresF ) << endl;
+   cout << "[Leader] ";
+   for( int j = 0; j < data.leader_dimension; j++ ){
+      cout << popL[idx + j * data.population_leader_size] << " ";
+   }
+   cout << "Fitness: " << fit_popL[idx] << endl;
+   cout << "[Follower] ";
+   for( int j = 0; j < data.follower_dimension; j++ ){
+      cout << popLValoresF[idx + j * data.population_leader_size] << " ";
+   }
+   cout << "Fitness: " << fit_popLValoresF[idx] << endl;
    // print best individual
    // end
 
-   //delete[] popL;
-   //delete[] popLValoresF;
+   delete[] popL;
+   delete[] popLValoresF;
    delete[] fit_popL;
    delete[] fit_popLValoresF;
 }
