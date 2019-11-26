@@ -25,7 +25,7 @@ __kernel void
 seed(int seed, __global uint* seed_global)
 {
    int gl_id = get_global_id(0); //POPL_SIZE * POPF_SIZE
-   seed_global[gl_id] = seed ^ gl_id;
+   seed_global[gl_id] = seed ^ (gl_id + 1);
 }
 
 __kernel void
