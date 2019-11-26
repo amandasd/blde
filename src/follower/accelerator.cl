@@ -25,7 +25,7 @@ __kernel void
 seed(int seed, __global uint* seed_global)
 {
    int gl_id = get_global_id(0); //POPL_SIZE * POPF_SIZE
-   seed_global[gl_id] = aleatorio(seed / (gl_id + 1));
+   seed_global[gl_id] = seed ^ gl_id;
 }
 
 __kernel void
@@ -62,8 +62,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          n = j * lo_size + lo_id;
          if( n < DIML )
          { 
-            seed = aleatorio(seed);
-            uL[n] = getLower(1, n) + (seed/(real_t)RAND_MAX)*(getUpper(1, n) - getLower(1, n)); //UPPER - LOWER
+            uL[n] = getLower(1, n) + Real( &seed )*(getUpper(1, n) - getLower(1, n)); //UPPER - LOWER
             popL[gr_id + n * POPL_SIZE] = uL[n];
          }
       }
@@ -78,18 +77,15 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
       {
 	      do
          {
-            seed = aleatorio(seed);
-	      	idx[0] = seed%POPL_SIZE;
+	      	idx[0] = Int( &seed, POPL_SIZE );
 	      } while(idx[0] == gr_id);
 	      do
          {
-            seed = aleatorio(seed);
-	      	idx[1] = seed%POPL_SIZE;
+	      	idx[1] = Int( &seed, POPL_SIZE );
 	      } while(idx[1] == gr_id || idx[1] == idx[0]);
 	      do
          {
-            seed = aleatorio(seed);
-	      	idx[2] = seed%POPL_SIZE;
+	      	idx[2] = Int( &seed, POPL_SIZE );
 	      } while(idx[2] == gr_id || idx[2] == idx[0] || idx[2] == idx[1]);
       }
       barrier(CLK_LOCAL_MEM_FENCE);
@@ -104,10 +100,8 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          n = j * lo_size + lo_id;
          if( n < DIML )
          { 
-            seed = aleatorio(seed);
-            int jRand = seed%DIML;
-            seed = aleatorio(seed);
-            if( n == jRand || (seed/(real_t)RAND_MAX < CR) )
+            int jRand = Int( &seed, DIML );
+            if( n == jRand || (Real( &seed ) < CR) )
             {	
 #if defined(VARIANT_rand) //DE/rand/1/bin
                uL[n] = popL[idx[0] + n * POPL_SIZE] + F*(popL[idx[1] + n * POPL_SIZE] - popL[idx[2] + n * POPL_SIZE]); 
@@ -157,8 +151,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          // i -> dimension D (D0, D1, D2, ...)
          for( int i = 0; i < DIMF; i++ )
          {
-            seed = aleatorio(seed);
-            lo_popF[n + i * POPF_SIZE] = getLower(2, i) + (seed/(real_t)RAND_MAX)*(getUpper(2, i) - getLower(2, i)); //UPPER - LOWER2
+            lo_popF[n + i * POPF_SIZE] = getLower(2, i) + Real( &seed )*(getUpper(2, i) - getLower(2, i)); //UPPER - LOWER2
             gl_popF[n + i * POPF_SIZE] = lo_popF[n + i * POPF_SIZE];
          }
          // follower population generation -> popF
@@ -180,20 +173,17 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             int idx1; 
             do
             {
-               seed = aleatorio(seed);
-               idx1 = seed%POPF_SIZE;
+               idx1 = Int( &seed, POPF_SIZE );
             } while(idx1 == n);
             int idx2; 
             do
             {
-               seed = aleatorio(seed);
-               idx2 = seed%POPF_SIZE;
+               idx2 = Int( &seed, POPF_SIZE );
             } while(idx2 == n || idx2 == idx1);
             int idx3; 
             do
             {
-               seed = aleatorio(seed);
-               idx3 = seed%POPF_SIZE;
+               idx3 = Int( &seed, POPF_SIZE );
             } while(idx3 == n || idx3 == idx1 || idx3 == idx2);
 
             // solution S is a array of size D
@@ -201,12 +191,10 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             // popF -> POPF_SIZE * DIMF
             // idx1 -> solution S (S0, S1, S2, ...)
             // lo_id -> follower uF
-            seed = aleatorio(seed);
-            int jRand = seed%DIMF;
+            int jRand = Int( &seed, DIMF );
             for( int i = 0; i < DIMF; i++ )
             {
-               seed = aleatorio(seed);
-               if( (i == jRand) || (seed/(real_t)RAND_MAX < CR) )
+               if( (i == jRand) || (Real( &seed ) < CR) )
                {	
 #if defined(VARIANT_rand) //DE/rand/1/bin
                   lo_popF[n + i * POPF_SIZE] = lo_popF[idx1 + i * POPF_SIZE] + F*(lo_popF[idx2 + i * POPF_SIZE] - lo_popF[idx3 + i * POPF_SIZE]);
