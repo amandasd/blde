@@ -405,7 +405,6 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    }
 
    int seed = Opts.Int.Get("-seed") == 0 ? time( NULL ) : Opts.Int.Get("-seed");
-   cout << seed << endl;
    create_buffers( seed );
 
    return 0;

@@ -114,14 +114,21 @@ void blde_evolve()
 
    acc_seed();
 
+   // popL and popLValoresF initialization
+   // start
    acc_follower( 1 );
+   // popL and popLValoresF initialization
+   // end
 
    //TODO: openMP
    //TODO: creterio de parada -> nEval
 	for( int g = 0; g < data.num_generation_leader; g++ )
-   {                           
+   {  
+      // for each uL there is a uF
+      // POPL_SIZE uLs run simultaneously, so at the end you have POPL_SIZE uFs 
       acc_follower( 0 );
 
+      // compare each new pair (uL, uF) with its respective old ones (popL, popLValoresF)
       acc_leader( fit_popL, fit_popLValoresF, g, popL, popLValoresF );
 
       // testa criterio de parada
@@ -137,28 +144,38 @@ void blde_evolve()
       if (data.verbose)
       {
          printf( "\n[%d] %.12f :: %.12f", g, fit_popL[idx], fit_popLValoresF[idx] ); 
+         cout << "\n[Leader] ";
+         for( int j = 0; j < data.leader_dimension; j++ ){
+            cout << popL[idx + j * data.population_leader_size] << " ";
+         }
+         cout << "\n[Follower] ";
+         for( int j = 0; j < data.follower_dimension; j++ ){
+            cout << popLValoresF[idx + j * data.population_leader_size] << " ";
+         }
+         cout << endl;
+
       }
 	}
    printf( "\n" ); 
 
    // best individual
    // start
-   int idx = best_individual( fit_popL );
+   //int idx = best_individual( fit_popL );
    // best individual
    // end
 
    // print best individual
    // start
-   cout << "[Leader] ";
-   for( int j = 0; j < data.leader_dimension; j++ ){
-      cout << popL[idx + j * data.population_leader_size] << " ";
-   }
-   cout << "Fitness: " << fit_popL[idx] << endl;
-   cout << "[Follower] ";
-   for( int j = 0; j < data.follower_dimension; j++ ){
-      cout << popLValoresF[idx + j * data.population_leader_size] << " ";
-   }
-   cout << "Fitness: " << fit_popLValoresF[idx] << endl;
+   //cout << "[Leader] ";
+   //for( int j = 0; j < data.leader_dimension; j++ ){
+   //   cout << popL[idx + j * data.population_leader_size] << " ";
+   //}
+   //cout << "Fitness: " << fit_popL[idx] << endl;
+   //cout << "[Follower] ";
+   //for( int j = 0; j < data.follower_dimension; j++ ){
+   //   cout << popLValoresF[idx + j * data.population_leader_size] << " ";
+   //}
+   //cout << "Fitness: " << fit_popLValoresF[idx] << endl;
    // print best individual
    // end
 

@@ -108,7 +108,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
 #elif defined(VARIANT_target_to_rand) //DE/target-to-rand/1/bin
                uL[n] = popL[gr_id + n * POPL_SIZE] + F*(popL[idx[0] + n * POPL_SIZE] - popL[gr_id + n * POPL_SIZE]) + F*(popL[idx[1] + n * POPL_SIZE] - popL[idx[2] + n * POPL_SIZE]); 
 #else
-   "Variant not supported"
+               "Variant not supported"
 #endif
                if( uL[n] < getLower(1, n) )
                {
@@ -128,12 +128,9 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             }
          }
       }
-      // leader generation -> uL
-      // end
    }
-
-   // Wait for all work itens because just some of them (lo_id < DIML) are responsible for the leader generation (uL).
-   barrier(CLK_LOCAL_MEM_FENCE);
+   // leader generation -> uL
+   // end
 
    // local_size can be <= POPF_SIZE. POPF_SIZE > local_size when max_local_size < POPF_SIZE.
    // the total number of uFs is equal POPF_SIZE.
