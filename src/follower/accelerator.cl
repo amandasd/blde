@@ -36,7 +36,6 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
    int gl_id = get_global_id(0); //POPL_SIZE * POPF_SIZE
 
    int lo_size = get_local_size(0);
-   int next_power_of_2 = pown(2.0f, (int) ceil(log2((real_t)lo_size)));
 
    uint seed = seed_global[gl_id];
 
@@ -260,6 +259,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
 
             seed_global[gl_id] = seed;
          }
+         best_idx[n] = n;
       }
    }
 
@@ -268,21 +268,30 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
    // number of groups -> POPL_SIZE
    // VF -> POPL_SIZE * DIMF
    // VL -> POPL_SIZE * DIML
-   best_idx[lo_id] = lo_id;
-   for( int k = next_power_of_2/2; k > 0; k >>= 1 )
+   for( int j = 0; j < (int) ceil(POPF_SIZE/(real_t)lo_size); ++j )
    {
-      barrier(CLK_LOCAL_MEM_FENCE);
-      if( (lo_id < k) && (lo_id + k < lo_size) )
+      n = j * lo_size + lo_id;
+      if( n < POPF_SIZE )
       {
-         // The functions 1001, 1002, ..., 1008 are all minimization functions.
-         //if( fitF[lo_id + k] < fitF[lo_id] ){
-         if( fitF[best_idx[lo_id + k]] < fitF[best_idx[lo_id]] )
+         int next_power_of_2 = pown(2.0f, (int) ceil(log2((real_t)POPF_SIZE)));
+         for( int k = next_power_of_2/2; k > 0; k/=2 )
          {
-            best_idx[lo_id] = lo_id + k;
-            //fitF[lo_id] = fitF[lo_id + k];
+            barrier(CLK_LOCAL_MEM_FENCE);
+            if( (n < k) && (n + k < POPF_SIZE) )
+            {
+               // The functions 1001, 1002, ..., 1008 are all minimization functions.
+               //if( fitF[n + k] < fitF[n] ){
+               if( fitF[best_idx[n + k]] <= fitF[best_idx[n]] )
+               {
+                  best_idx[n] = best_idx[n + k];
+                  //fitF[n] = fitF[n + k];
+               }
+            }
          }
       }
    }
+   //TODO
+   barrier(CLK_LOCAL_MEM_FENCE);
 
    if( initialization )
    {
