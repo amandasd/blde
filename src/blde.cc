@@ -59,12 +59,13 @@ void blde_init( int argc, char** argv )
    if( Opts.String.Get("-function") == "1006" )
    {
       data.q = floor( ( data.follower_dimension - data.r )/2. - EPS );
+      data.s = ceil(  ( data.follower_dimension - data.r )/2. + EPS );
    }
    else
    {
       data.q = data.follower_dimension - data.r;
+      data.s = 0.;
    }
-   data.s = ceil( ( data.follower_dimension - data.r )/2. + EPS );
 
    /*
       //////////////////////////////////////////////////////////////////////////
