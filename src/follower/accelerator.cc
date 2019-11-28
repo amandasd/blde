@@ -281,7 +281,7 @@ void create_buffers( int seed )
 
    data.follower_buffer_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
    data.follower_buffer_popLValoresF = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
-   data.follower_buffer_popF = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_follower_size * data.follower_dimension * sizeof( real_t ) );
+   data.follower_buffer_popF = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_follower_size * data.follower_dimension * data.population_leader_size * sizeof( real_t ) );
    data.follower_buffer_vf = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
    data.follower_buffer_vl = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
 

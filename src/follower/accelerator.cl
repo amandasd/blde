@@ -152,15 +152,27 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          for( int i = 0; i < DIMF; i++ )
          {
             lo_popF[n + i * POPF_SIZE] = getLower(2, i) + Real( &seed )*(getUpper(2, i) - getLower(2, i)); //UPPER - LOWER2
-            gl_popF[n + i * POPF_SIZE] = lo_popF[n + i * POPF_SIZE];
+            gl_popF[gr_id * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] = lo_popF[n + i * POPF_SIZE];
          }
          // follower population generation -> popF
          // end
+      }
+   }
 
+   // Wait for all work itens because just some of them (lo_id < DIML) are responsible for the leader generation (uL).
+   // And because each lo_id will access diferent positions of lo_popF.
+   barrier(CLK_LOCAL_MEM_FENCE);
+
+   for( int j = 0; j < (int) ceil(POPF_SIZE/(real_t)lo_size); ++j )
+   {
+      n = j * lo_size + lo_id;
+      if( n < POPF_SIZE )
+      {
          // follower population evaluation -> popF
          // start
          // fitF -> size of POPF_SIZE
          // evaluate_transpose_follower always level 2
+         // TODO: mudar para fit_popF
          fitF[n] = evaluate_transpose_follower(n, uL, lo_popF);
          // follower population evaluation -> popF
          // end
@@ -236,14 +248,14 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
                fitF[n] = fitF_new;
                for( int i = 0; i < DIMF; i++ )
                {
-                  gl_popF[n + i * POPF_SIZE] = lo_popF[n + i * POPF_SIZE];
+                  gl_popF[gr_id * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] = lo_popF[n + i * POPF_SIZE];
                }
             } 
             else 
             {
                for( int i = 0; i < DIMF; i++ )
                {
-                  lo_popF[n + i * POPF_SIZE] = gl_popF[n + i * POPF_SIZE];
+                  lo_popF[n + i * POPF_SIZE] = gl_popF[gr_id * (POPF_SIZE * DIMF) + n + i * POPF_SIZE];
                }
             }
             // new generation
