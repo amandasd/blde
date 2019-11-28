@@ -314,13 +314,13 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             VF[gr_id + n * POPL_SIZE] = lo_popF[best_idx[0] + n * POPF_SIZE];
          }
       }
-   }
-   for( int j = 0; j < (int) ceil(DIML/(real_t)lo_size); ++j )
-   {
-      n = j * lo_size + n;
-      if( n < DIML )
-      { 
-         VL[gr_id + n * POPL_SIZE] = uL[n];
+      for( int j = 0; j < (int) ceil(DIML/(real_t)lo_size); ++j )
+      {
+         n = j * lo_size + n;
+         if( n < DIML )
+         { 
+            VL[gr_id + n * POPL_SIZE] = uL[n];
+         }
       }
    }
    // reduction: best individual
