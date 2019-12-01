@@ -43,7 +43,7 @@ std::string getAbsoluteDirectory(std::string filepath)
 /** ***************************** TYPES ****************************** **/
 /** ****************************************************************** **/
 
-namespace { static struct t_data { int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; int num_generation_follower; real_t crossover_rate; real_t f; int r; int p; int q; int s; std::string variant; unsigned local_size; unsigned global_size; cl::Device device; cl::Context context; cl::Kernel kernel_seed; cl::Kernel kernel_follower; cl::Kernel kernel_leader; cl::CommandQueue queue; cl::Buffer seed_buffer; cl::Buffer follower_buffer_popL; cl::Buffer follower_buffer_popLValoresF; cl::Buffer follower_buffer_popF; cl::Buffer follower_buffer_vf; cl::Buffer follower_buffer_vl; cl::Buffer leader_buffer_fit_popL; cl::Buffer leader_buffer_fit_popLValoresF; std::string executable_directory; bool verbose; } data; };
+namespace { static struct t_data { int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; int num_generation_follower; real_t crossover_rate; real_t f; int r; int p; int q; int s; std::string variant; std::string function; std::string function_str; unsigned local_size; unsigned global_size; cl::Device device; cl::Context context; cl::Kernel kernel_seed; cl::Kernel kernel_follower; cl::Kernel kernel_leader; cl::CommandQueue queue; cl::Buffer seed_buffer; cl::Buffer follower_buffer_popL; cl::Buffer follower_buffer_popLValoresF; cl::Buffer follower_buffer_popF; cl::Buffer follower_buffer_vf; cl::Buffer follower_buffer_vl; cl::Buffer leader_buffer_fit_popL; cl::Buffer leader_buffer_fit_popLValoresF; std::string executable_directory; bool verbose; } data; };
 
 /** ****************************************************************** **/
 /** *********************** AUXILIARY FUNCTION *********************** **/
@@ -198,9 +198,9 @@ int build_kernel( int maxlocalsize )
       "#define POPL_SIZE " + util::ToString( data.population_leader_size ) + "\n#define POPF_SIZE " + util::ToString( data.population_follower_size ) + "\n" +
       "#define DIML " + util::ToString( data.leader_dimension ) + "\n#define DIMF " + util::ToString( data.follower_dimension ) + "\n" +
       "#define GENF_NUM " + util::ToString( data.num_generation_follower ) + "\n#define CR " + util::ToString( data.crossover_rate ) + "\n" + 
-      "#define F " + util::ToString( data.f ) + "\n#define RAND_MAX " + util::ToString( RAND_MAX ) + "\n#define r " + util::ToString( data.r ) + "\n" + 
+      "#define F " + util::ToString( data.f ) + "\n#define r " + util::ToString( data.r ) + "\n" + 
       "#define p " + util::ToString( data.p ) + "\n#define q " + util::ToString( data.q ) + "\n#define s " + util::ToString( data.s ) + "\n" + 
-      kernel_str;
+      data.function_str + kernel_str;
    //cout << program_str << endl;
 
    cl::Program::Sources source( 1, make_pair( program_str.c_str(), program_str.size() ) );
@@ -273,7 +273,6 @@ int build_kernel( int maxlocalsize )
 }
 
 // -----------------------------------------------------------------------------
-
 void create_buffers( int seed )
 {
    // Buffer (memory on the device) of the programs
@@ -281,7 +280,7 @@ void create_buffers( int seed )
 
    data.follower_buffer_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
    data.follower_buffer_popLValoresF = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
-   data.follower_buffer_popF = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_follower_size * data.follower_dimension * sizeof( real_t ) );
+   data.follower_buffer_popF = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_follower_size * data.follower_dimension * data.population_leader_size * sizeof( real_t ) );
    data.follower_buffer_vf = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
    data.follower_buffer_vl = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
 
@@ -310,6 +309,531 @@ void create_buffers( int seed )
    data.kernel_leader.setArg( 5, data.leader_buffer_fit_popLValoresF );
 }
 
+// -----------------------------------------------------------------------------
+int build_function()
+{
+   string header = 
+  "\n// Check for the availability (and enable) of double precision support\n"
+  "#ifdef CONFIG_USE_DOUBLE\n"
+  "#if defined(cl_khr_fp64)\n"
+  "#pragma OPENCL EXTENSION cl_khr_fp64 : enable\n"
+  "#define DOUBLE_SUPPORT_AVAILABLE\n"
+  "#elif defined(cl_amd_fp64)\n"
+  "#pragma OPENCL EXTENSION cl_amd_fp64 : enable\n"
+  "#define DOUBLE_SUPPORT_AVAILABLE\n"
+  "#endif\n"
+  "#endif /* CONFIG_USE_DOUBLE */\n\n"
+  "#if defined(CONFIG_USE_DOUBLE)\n"
+  "   #if ! defined(DOUBLE_SUPPORT_AVAILABLE)\n"
+  "      #error ""The device does not support double""\n"
+  "   #else\n"
+  "      typedef double real_t;\n"
+  "   #endif\n"
+  "#else\n"
+  "   typedef float real_t;\n"
+  "#endif\n\n"
+  "#define LCG_RAND_MAX 2147483647\n\n"
+  "/* Generates a pseudo random number using a special case of Linear Congruential\n"
+  "   Generator (Lehmer). For more information, please refer to:\n\n" 
+  "   https://en.wikipedia.org/wiki/Lehmer_random_number_generator\n\n"
+  "   seed must be:  0 < seed < 2147483647\n"
+  "*/\n\n"
+  "uint lcg( uint seed )\n"
+  "{\n"
+  "   ulong product = (ulong) seed * 48271;\n"
+  "   uint x = (product & 0x7fffffff) + (product >> 31);\n"
+  "   return (x & 0x7fffffff) + (x >> 31);\n"
+  "}\n\n"
+  "/* Returns a float random number in (0,1] */\n"
+  "real_t Real( uint * seed )\n"
+  "{\n"
+  "   *seed = lcg( *seed );\n"
+  "   return *seed / (real_t) LCG_RAND_MAX;\n"
+  "}\n\n"
+  "/* Returns an integer (unsigned) random number in [0,n) */\n"
+  "uint Int( uint * seed, uint n )\n"
+  "{\n"
+  "   *seed = lcg( *seed );\n"
+  "   return *seed % n;\n"
+  "}\n\n";
+
+   string function_getLower_level_1 =
+  "real_t getLower_level_1(int indice)\n"
+  "{\n"
+  "   return -5.;\n"
+  "}\n\n";
+
+   string function_1004_getLower_level_1 =
+  "real_t getLower_level_1(int indice)\n"
+  "{\n"
+  "   if (indice < p)\n"
+  "   {\n"
+  "       return -5.;\n"
+  "   } \n"
+  "   else \n"
+  "   {\n"
+  "       return -1.;\n"
+  "   }\n"
+  "}\n\n";
+
+   string function_1001_e_1003_getLower_level_2 =
+  "real_t getLower_level_2( int indice )\n"
+  "{\n"
+  "   if (indice < q)\n"
+  "   {\n"
+  "     return -5.;\n"
+  "   } \n"
+  "   else \n"
+  "   {\n"
+  "     return -(M_PI_F/2.) + 0.000000000001;\n"
+  "   }\n"
+  "}\n\n";
+
+   string function_1002_e_1004_e_1007_getLower_level_2 =
+  "real_t getLower_level_2( int indice )\n"
+  "{\n"
+  "   if (indice < q)\n"
+  "   {\n"
+  "     return -5.;\n"
+  "   } \n"
+  "   else \n"
+  "   {\n"
+  "     return 0.000000000001;\n"
+  "   }\n"
+  "}\n\n";
+
+   string function_1005_e_1006_e_1008_getLower_level_2 =
+  "real_t getLower_level_2( int indice )\n"
+  "{\n"
+  "   return -5.;\n"
+  "}\n\n";
+
+   string function_getUpper_level_1 = 
+  "real_t getUpper_level_1(int indice)\n"
+  "{\n"
+  "   return 10.;\n"
+  "}\n\n";
+
+   string function_1002_e_1004_e_1007_getUpper_level_1 = 
+  "real_t getUpper_level_1( int indice )\n"
+  "{\n"
+  "   if (indice < p)\n"
+  "   {\n"
+  "       return 10.;\n"
+  "   } \n"
+  "   else \n"
+  "   {\n"
+  "       return 1.;\n"
+  "   }\n"
+  "}\n\n";
+
+   string function_1001_e_1003_getUpper_level_2 =
+  "real_t getUpper_level_2( int indice )\n"
+  "{\n"
+  "   if (indice < q)\n"
+  "   {\n"
+  "       return 10.;\n"
+  "   } \n"
+  "   else \n"
+  "   {\n"
+  "       return M_PI_F/2. - 0.000000000001;\n"
+  "   }\n"
+  "}\n\n";
+
+   string function_1002_e_1004_e_1007_getUpper_level_2 =
+  "real_t getUpper_level_2( int indice )\n"
+  "{\n"
+  "   if (indice < q)\n"
+  "   {\n"
+  "       return 10.;\n"
+  "   } \n"
+  "   else \n"
+  "   {\n"
+  "       return M_E_F;\n"
+  "   }\n"
+  "}\n\n";
+
+   string function_1005_e_1006_e_1008_getUpper_level_2 =
+  "real_t getUpper_level_2( int indice )\n"
+  "{\n"
+  "   return 10.;\n"
+  "}\n\n";
+
+   string function_evaluate_transpose_leader_level_1 = 
+   "real_t evaluate_transpose_leader_level_1( int idx, global real_t* uL, global real_t* uF )\n";
+
+   string function_evaluate_transpose_leader_level_2 = 
+   "real_t evaluate_transpose_leader_level_2( int idx, global real_t* uL, global real_t* uF )\n";
+
+   string function_evaluate_transpose_follower_level_1 = 
+   "real_t evaluate_transpose_follower_level_1( int idx, local real_t* uL, local real_t* popF )\n";
+
+   string function_evaluate_transpose_follower_level_2 = 
+   "real_t evaluate_transpose_follower_level_2( int idx, local real_t* uL, local real_t* popF )\n";
+
+   string header_evaluate_transpose_leader = 
+   "{\n"
+   "   real_t F1 = 0.0, F2 = 0.0, F3 = 0.0;\n\n"
+   "   real_t x[DIML];\n"
+   "   real_t y[DIMF];\n\n"
+   "   for(int i = 0; i < DIML; i++)\n"
+   "   {\n"
+   "      x[i] = uL[idx + i * POPL_SIZE];\n"
+   "   }\n"
+   "   for(int i = 0; i < DIMF; i++)\n"
+   "   {\n"
+   "      y[i] = uF[idx + i * POPL_SIZE];\n"
+   "   }\n";
+   
+   string header_evaluate_transpose_follower = 
+   "{\n"
+   "   real_t F1 = 0.0, F2 = 0.0, F3 = 0.0;\n\n"
+   "   real_t x[DIML];\n"
+   "   real_t y[DIMF];\n\n"
+   "   for(int i = 0; i < DIML; i++)\n"
+   "   {\n"
+   "      x[i] = uL[i];\n"
+   "   }\n"
+   "   for(int i = 0; i < DIMF; i++)\n"
+   "   {\n"
+   "      y[i] = popF[idx + i * POPF_SIZE];\n"
+   "   }\n";
+   
+   string function_1001_evaluate_level_1 =
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += (x[i]*x[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < q; i++)\n"
+   "   {\n"
+   "      F2 += (y[i]*y[i]);\n"
+   "   }\n"
+   "   real_t sum1 = 0.0, sum2 = 0.0;\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      sum1 += (x[p+i]*x[p+i]);\n"
+   "      sum2 += ((x[p+i]-tan(y[q+i]))*(x[p+i]-tan(y[q+i])));\n"
+   "   }\n"
+   "   F3 = sum1+sum2;\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+   
+   string function_1001_evaluate_level_2 =
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += (x[i]*x[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < q; i++)\n"
+   "   {\n"
+   "      F2 += (y[i]*y[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      F3 += ((x[p+i]-tan(y[q+i]))*(x[p+i]-tan(y[q+i])));\n"
+   "   }\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   string function_1002_evaluate_level_1 = 
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += (x[i]*x[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < q; i++)\n"
+   "   {\n"
+   "      F2 += (y[i]*y[i]);\n"
+   "   }\n"
+   "   F2 = F2*(-1);\n"
+   "   real_t sum1 = 0.0, sum2 = 0.0;\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      sum1 += (x[p+i]*x[p+i]);\n"
+   "      sum2 += ((x[p+i]-log(y[q+i]))*(x[p+i]-log(y[q+i])));\n"
+   "   }\n"
+   "   F3 = sum1-sum2;\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   string function_1002_evaluate_level_2 =
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += (x[i]*x[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < q; i++)\n"
+   "   {\n"
+   "      F2 += (y[i]*y[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      F3 += ((x[p+i]-log(y[q+i]))*(x[p+i]-log(y[q+i])));\n"
+   "   }\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   string function_1003_evaluate_level_1 = 
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += (x[i]*x[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < q; i++)\n"
+   "   {\n"
+   "      F2 += (y[i]*y[i]);\n"
+   "   }\n"
+   "   real_t sum1 = 0.0, sum2 = 0.0;\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      sum1 += (x[p+i]*x[p+i]);\n"
+   "      sum2 += (((x[p+i]*x[p+i])-tan(y[q+i]))*((x[p+i]*x[p+i])-tan(y[q+i])));\n"
+   "   }\n"
+   "   F3 = sum1+sum2;\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   string function_1003_evaluate_level_2 = 
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += (x[i]*x[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < q; i++)\n"
+   "   {\n"
+   "      F2 += ((y[i]*y[i])-cos(2*M_PI_F*y[i]));\n"
+   "   }\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      F3 += (((x[p+i]*x[p+i])-tan(y[q+i]))*((x[p+i]*x[p+i])-tan(y[q+i])));\n"
+   "   }\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   string function_1004_evaluate_level_1 = 
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += (x[i]*x[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < q; i++)\n"
+   "   {\n"
+   "      F2 += (y[i]*y[i]);\n"
+   "   }\n"
+   "   F2 = F2*(-1);\n"
+   "   real_t sum1 = 0.0, sum2 = 0.0;\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      sum1 += (x[p+i]*x[p+i]);\n"
+   "      sum2 += ((fabs(x[p+i])-log(1+y[q+i]))*(fabs(x[p+i])-log(1+y[q+i])));\n"
+   "   }\n"
+   "   F3 = sum1-sum2;\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   string function_1004_evaluate_level_2 = 
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += (x[i]*x[i]);\n"
+   "   }\n"
+   "   F2 = q;\n"
+   "   for(int i = 0; i < q; i++)\n"
+   "   {\n"
+   "      F2 += ((y[i]*y[i])-cos(2*M_PI_F*y[i]));\n"
+   "   }\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      F3 += ((fabs(x[p+i])-log(1+y[q+i]))*(fabs(x[p+i])-log(1+y[q+i])));\n"
+   "   }\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   string function_1005_evaluate_level_1 = 
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += (x[i]*x[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < q; i++)\n"
+   "   {\n"
+   "      F2 += (((y[i+1]-(y[i]*y[i]))*(y[i+1]-(y[i]*y[i])))+((y[i]-1)*(y[i]-1)));\n"
+   "      //F2 += ((y[i+1]-(y[i]*y[i]))+((y[i]-1)*(y[i]-1)));\n"
+   "   }\n"
+   "   F2 = F2*(-1);\n"
+   "   real_t sum1 = 0.0, sum2 = 0.0;\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      sum1 += (x[p+i]*x[p+i]);\n"
+   "      sum2 += ((fabs(x[p+i])-(y[q+i]*y[q+i]))*(fabs(x[p+i])-(y[q+i]*y[q+i])));\n"
+   "   }\n"
+   "   F3 = sum1-sum2;\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   string function_1005_evaluate_level_2 = 
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += (x[i]*x[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < q-1; i++)\n"
+   "   {\n"
+   "      F2 += (((y[i+1]-(y[i]*y[i]))*(y[i+1]-(y[i]*y[i])))+((y[i]-1)*(y[i]-1)));\n"
+   "      //F2 += ((y[i+1]-(y[i]*y[i]))+((y[i]-1)*(y[i]-1)));\n"
+   "   }\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      F3 += ((fabs(x[p+i])-(y[q+i]*y[q+i]))*(fabs(x[p+i])-(y[q+i]*y[q+i])));\n"
+   "   }\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   string function_1006_evaluate_level_1 = 
+   "   real_t sum1 = 0.0, sum2 = 0.0;\n"
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += (x[i]*x[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < q; i++)\n"
+   "   {\n"
+   "      sum1 += (y[i]*y[i]);\n"
+   "   }\n"
+   "   for(int i = q; i < q+s; i++)\n"
+   "   {\n"
+   "      sum2 += (y[i]*y[i]);\n"
+   "   }\n"
+   "   F2 = sum2-sum1;\n"
+   "   sum1 = 0.0; sum2 = 0.0;\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      sum1 += (x[p+i]*x[p+i]);\n"
+   "      sum2 += ((x[p+i]-y[q+s+i])*(x[p+i]-y[q+s+i]));\n"
+   "   }\n"
+   "   F3 = sum1-sum2;\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   string function_1006_evaluate_level_2 = 
+   "   real_t sum1 = 0.0, sum2 = 0.0;\n"
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += (x[i]*x[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < q; i++)\n"
+   "   {\n"
+   "      sum1 += (y[i]*y[i]);\n"
+   "   }\n"
+   "   //O 'sum2' foi alterado da ref original\n"
+   "   for(int i = q; i < q+s; i = i+2)\n"
+   "   {\n"
+   "      sum2 += ((y[i+1]-y[i])*(y[i+1]-y[i]));\n"
+   "   }\n"
+   "   F2 = sum1+sum2;\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      F3 += ((x[p+i]-y[q+s+i])*(x[p+i]-y[q+s+i]));\n"
+   "   }\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   // TODO
+   string function_1007_evaluate_level_1 = 
+   "   for(int i = 0; i < q; i++)\n"
+   "   {\n"
+   "      F2 += (y[i]*y[i]);\n"
+   "   }\n"
+   "   real_t sum1 = 0.0, sum2 = 0.0, prod = 1.0;\n"
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      sum1 += (x[i]*x[i]);\n"
+   "      prod *= (cos(x[i]/sqrt((real_t)(i+1))));\n"
+   "   }\n"
+   "   F1 = 1. + ((1/400.)*sum1)-prod;\n"
+   "   F2 = F2*(-1);\n"
+   "   sum1 = 0.0; \n"
+   "   int j = p, w = q;\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      sum1 += (x[j]*x[j]);\n"
+   "      sum2 += ((x[j]-log(y[w]))*(x[j]-log(y[w])));\n"
+   "      j++; w++;\n"
+   "   }\n"
+   "   F3 = sum1-sum2;\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   string function_1007_evaluate_level_2 = 
+   "   for(int i = 0; i < q; i++)\n"
+   "   {\n"
+   "      F2 += (y[i]*y[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += (x[i]*x[i]*x[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      F3 += ((x[p+i]-log(y[q+i]))*(x[p+i]-log(y[q+i])));\n"
+   "   }\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   string function_1008_evaluate_level_1 = 
+   "   real_t sum1 = 0.0, sum2 = 0.0;\n"
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      sum1 += (x[i]*x[i]);\n"
+   "      sum2 += (cos(2*M_PI_F*x[i]));\n"
+   "   }\n"
+   "   F1 = (20+M_E_F-(20*exp(-0.2*sqrt((1/p)*sum1)))-exp((1/p)*sum2));\n"
+   "   for(int i = 0; i < q-1; i++)\n"
+   "   {\n"
+   "      F2 += ((y[i+1]-(y[i]*y[i]))*(y[i+1]-(y[i]*y[i]))+((y[i]-1)*(y[i]-1)));\n"
+   "      //F2 += ((y[i+1]-(y[i]*y[i]))+((y[i]-1)*(y[i]-1)));\n"
+   "   }\n"
+   "   F2 = F2*(-1);\n"
+   "   sum1 = 0.0; sum2 = 0.0;\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      sum1 += ((x[p+i]*x[p+i]));\n"
+   "      sum2 += ((x[p+i]-(y[q+i]*y[q+i]*y[q+i]))*(x[p+i]-(y[q+i]*y[q+i]*y[q+i])));\n"
+   "   }\n"
+   "   F3 = sum1-sum2;\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+   string function_1008_evaluate_level_2 = 
+   "   for(int i = 0; i < p; i++)\n"
+   "   {\n"
+   "      F1 += fabs(x[i]);\n"
+   "   }\n"
+   "   for(int i = 0; i < q-1; i++)\n"
+   "   {\n"
+   "      F2 += ((y[i+1]-(y[i]*y[i]))*(y[i+1]-(y[i]*y[i]))+((y[i]-1)*(y[i]-1)));\n"
+   "      //F2 += ((y[i+1]-(y[i]*y[i]))+((y[i]-1)*(y[i]-1)));\n"
+   "   }\n"
+   "   for(int i = 0; i < r; i++)\n"
+   "   {\n"
+   "      F3 += ((x[p+i]-(y[q+i]*y[q+i]*y[q+i]))*(x[p+i]-(y[q+i]*y[q+i]*y[q+i])));\n"
+   "   }\n\n"
+   "   return F1+F2+F3;\n"
+   "}\n\n";
+
+
+   if( data.function == str(1001) )
+      data.function_str = header + function_getLower_level_1 + function_1001_e_1003_getLower_level_2 + function_getUpper_level_1 + function_1001_e_1003_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1001_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1001_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1001_evaluate_level_2;
+   else if( data.function == str(1002) )
+      data.function_str = header + function_getLower_level_1 + function_1002_e_1004_e_1007_getLower_level_2 + function_1002_e_1004_e_1007_getUpper_level_1 + function_1002_e_1004_e_1007_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1002_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1002_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1002_evaluate_level_2;
+   else if( data.function == str(1003) )
+      data.function_str = header + function_getLower_level_1 + function_1001_e_1003_getLower_level_2 + function_getUpper_level_1 + function_1001_e_1003_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1003_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1003_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1003_evaluate_level_2;
+   else if( data.function == str(1004) )
+      data.function_str = header + function_1004_getLower_level_1 + function_1002_e_1004_e_1007_getLower_level_2 + function_1002_e_1004_e_1007_getUpper_level_1 + function_1002_e_1004_e_1007_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1004_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1004_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1004_evaluate_level_2;
+
+   else if( data.function == str(1005) )
+      data.function_str = header + function_getLower_level_1 + function_1005_e_1006_e_1008_getLower_level_2 + function_getUpper_level_1 + function_1005_e_1006_e_1008_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1005_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1005_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1005_evaluate_level_2;
+   else if( data.function == str(1006) )
+      data.function_str = header + function_getLower_level_1 + function_1005_e_1006_e_1008_getLower_level_2 + function_getUpper_level_1 + function_1005_e_1006_e_1008_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1006_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1006_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1006_evaluate_level_2;
+   else if( data.function == str(1007) )
+      data.function_str = header + function_getLower_level_1 + function_1002_e_1004_e_1007_getLower_level_2 + function_1002_e_1004_e_1007_getUpper_level_1 + function_1002_e_1004_e_1007_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1007_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1007_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1007_evaluate_level_2;
+   else if( data.function == str(1008) )
+         data.function_str = header + function_getLower_level_1 + function_1005_e_1006_e_1008_getLower_level_2 + function_getUpper_level_1 + function_1005_e_1006_e_1008_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1008_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1008_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1008_evaluate_level_2;
+   else
+      fprintf(stderr, "Valid function: 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008 e 1009.\n");
+
+   return 0;
+}
 
 /** ****************************************************************** **/
 /** ************************* MAIN FUNCTION ************************** **/
@@ -331,7 +855,7 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    Opts.Int.Add( "-cl-mls", "--cl-max-local-size", -1 );
    Opts.String.Add( "-type" );
 
-   Opts.Int.Add( "-s", "--seed", 0, 0, std::numeric_limits<long>::max() );
+   Opts.Int.Add( "-seed", "", 0, 0, std::numeric_limits<long>::max() );
 
    Opts.Int.Add( "-gf", "--generation-follower", 10, 0, std::numeric_limits<int>::max() );
    Opts.Int.Add( "-pfs", "--population-follower-size", 64, 1, std::numeric_limits<int>::max() );
@@ -348,6 +872,7 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    //TODO
    Opts.String.Add( "-variant", "", "RAND", "rand", "TARGET_TO_RAND", "target_to_rand", NULL );
    //Opts.String.Add( "-variant", "", "RAND", "rand", "BEST", "best", "TARGET_TO_RAND", "target_to_rand", "TARGET_TO_BEST", "target_to_best", NULL );
+   Opts.String.Add( "-function", "", "", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008", "1009", NULL );
 
    Opts.Process();
 
@@ -365,6 +890,7 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    data.f = Opts.Float.Get("-f");
 
    data.variant = Opts.String.Get("-variant");
+   data.function = Opts.String.Get("-function");
 
    data.r = r;
    data.p = p;
@@ -398,13 +924,19 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
       return 1;
    }
 
+   if ( build_function() )
+   {
+      fprintf(stderr,"Error in build the function string.\n");
+      return 1;
+   }
+
    if ( build_kernel( Opts.Int.Get("-cl-mls") ) )
    {
       fprintf(stderr,"Error in build the kernel.\n");
       return 1;
    }
 
-   int seed = Opts.Int.Get("-s") == 0 ? time( NULL ) : Opts.Int.Get("-s");
+   int seed = Opts.Int.Get("-seed") == 0 ? time( NULL ) : Opts.Int.Get("-seed");
    create_buffers( seed );
 
    return 0;
@@ -446,7 +978,7 @@ void acc_follower( int initialization )
 }
 
 // -----------------------------------------------------------------------------
-void acc_leader( real_t* fit_popL, real_t* fit_popLValoresF, int generation )
+void acc_leader( real_t* fit_popL, real_t* fit_popLValoresF, int generation, real_t* popL, real_t* popLValoresF )
 {
    data.kernel_leader.setArg( 6, generation );
 
@@ -464,4 +996,8 @@ void acc_leader( real_t* fit_popL, real_t* fit_popLValoresF, int generation )
 
    data.queue.enqueueReadBuffer( data.leader_buffer_fit_popL, CL_TRUE, 0, data.population_leader_size * sizeof( real_t ), fit_popL );
    data.queue.enqueueReadBuffer( data.leader_buffer_fit_popLValoresF, CL_TRUE, 0, data.population_leader_size * sizeof( real_t ), fit_popLValoresF );
+   data.queue.enqueueReadBuffer( data.follower_buffer_popL, CL_TRUE, 0, data.population_leader_size * data.leader_dimension * sizeof( real_t ), popL );
+   data.queue.enqueueReadBuffer( data.follower_buffer_popLValoresF, CL_TRUE, 0, data.population_leader_size * data.follower_dimension * sizeof( real_t ), popLValoresF );
 }
+
+
