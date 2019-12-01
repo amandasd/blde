@@ -1,26 +1,3 @@
-// Check for the availability (and enable) of double precision support
-#ifdef CONFIG_USE_DOUBLE
-#if defined(cl_khr_fp64)
-#pragma OPENCL EXTENSION cl_khr_fp64 : enable
-#define DOUBLE_SUPPORT_AVAILABLE
-#elif defined(cl_amd_fp64)
-#pragma OPENCL EXTENSION cl_amd_fp64 : enable
-#define DOUBLE_SUPPORT_AVAILABLE
-#endif
-#endif /* CONFIG_USE_DOUBLE */
-
-#if defined(CONFIG_USE_DOUBLE)
-   #if ! defined(DOUBLE_SUPPORT_AVAILABLE)
-      #error "The device does not support double"
-   #else
-      typedef double real_t;
-   #endif
-#else
-   typedef float real_t;
-#endif
-
-#include <functions.h>
-
 __kernel void 
 seed(int seed, __global uint* seed_global)
 {
@@ -61,7 +38,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          n = j * lo_size + lo_id;
          if( n < DIML )
          { 
-            uL[n] = getLower(1, n) + Real( &seed )*(getUpper(1, n) - getLower(1, n)); //UPPER - LOWER
+            uL[n] = getLower_level_1( n ) + Real( &seed )*(getUpper_level_1( n ) - getLower_level_1( n )); //UPPER - LOWER
             popL[gr_id + n * POPL_SIZE] = uL[n];
          }
       }
@@ -109,15 +86,15 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
 #else
                "Variant not supported"
 #endif
-               if( uL[n] < getLower(1, n) )
+               if( uL[n] < getLower_level_1( n ) )
                {
-                  uL[n] = getLower(1, n);
+                  uL[n] = getLower_level_1( n );
                }
                else 
                {
-                  if( uL[n] > getUpper(1, n) )
+                  if( uL[n] > getUpper_level_1( n ) )
                   {
-                     uL[n] = getUpper(1, n);
+                     uL[n] = getUpper_level_1( n );
                   }
                }
             } 
@@ -147,7 +124,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          // i -> dimension D (D0, D1, D2, ...)
          for( int i = 0; i < DIMF; i++ )
          {
-            lo_popF[n + i * POPF_SIZE] = getLower(2, i) + Real( &seed )*(getUpper(2, i) - getLower(2, i)); //UPPER - LOWER2
+            lo_popF[n + i * POPF_SIZE] = getLower_level_2( i ) + Real( &seed )*(getUpper_level_2( i ) - getLower_level_2( i )); //UPPER - LOWER2
             gl_popF[gr_id * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] = lo_popF[n + i * POPF_SIZE];
          }
          // follower population generation -> popF
@@ -167,9 +144,8 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          // follower population evaluation -> popF
          // start
          // fitF -> size of POPF_SIZE
-         // evaluate_transpose_follower always level 2
          // TODO: mudar para fit_popF
-         fitF[n] = evaluate_transpose_follower(n, uL, lo_popF);
+         fitF[n] = evaluate_transpose_follower_level_2(n, uL, lo_popF);
          // follower population evaluation -> popF
          // end
 
@@ -211,15 +187,15 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
 #else
    "Variant not supported"
 #endif
-                  if( lo_popF[n + i * POPF_SIZE] < getLower(2, i) )
+                  if( lo_popF[n + i * POPF_SIZE] < getLower_level_2( i ) )
                   {
-                     lo_popF[n + i * POPF_SIZE] = getLower(2, i);
+                     lo_popF[n + i * POPF_SIZE] = getLower_level_2( i );
                   }
                   else 
                   {
-                     if( lo_popF[n + i * POPF_SIZE] > getUpper(2, i) ) 
+                     if( lo_popF[n + i * POPF_SIZE] > getUpper_level_2( i ) ) 
                      {
-                        lo_popF[n + i * POPF_SIZE] = getUpper(2, i);
+                        lo_popF[n + i * POPF_SIZE] = getUpper_level_2( i );
                      }
                   }
                }
@@ -229,9 +205,8 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
 
             // follower evaluation -> uF
             // start
-            // evaluate_transpose_follower always level 2
             real_t fitF_new;
-            fitF_new = evaluate_transpose_follower(n, uL, lo_popF);
+            fitF_new = evaluate_transpose_follower_level_2(n, uL, lo_popF);
             // follower evaluation -> uF
             // end
 
@@ -336,11 +311,11 @@ leader( __global real_t* popL, __global real_t* popLValoresF, __global real_t* V
    // popL, popLValoreF, VF e VL => S0D0 | S1D0 | S2D0 | ... | S0D1 | S1D1 | S2D1 | ...
    // gl_id -> solution S (S0, S1, S2, ...) of POPL
 
-   real_t fit_VL = evaluate_transpose_leader( gl_id, 1, VL, VF );
+   real_t fit_VL = evaluate_transpose_leader_level_1( gl_id, VL, VF );
    if( generation == 0 ) 
    {
-      fit_popL[gl_id] = evaluate_transpose_leader( gl_id, 1, popL, popLValoresF );
-      fit_popLValoresF[gl_id] = evaluate_transpose_leader( gl_id, 2, popL, popLValoresF );
+      fit_popL[gl_id] = evaluate_transpose_leader_level_1( gl_id, popL, popLValoresF );
+      fit_popLValoresF[gl_id] = evaluate_transpose_leader_level_2( gl_id, popL, popLValoresF );
    }
 
 	if( fit_VL <= fit_popL[gl_id] )
@@ -354,7 +329,7 @@ leader( __global real_t* popL, __global real_t* popLValoresF, __global real_t* V
          popLValoresF[gl_id + j * POPL_SIZE] = VF[gl_id + j * POPL_SIZE];
       }
       fit_popL[gl_id] = fit_VL;
-      fit_popLValoresF[gl_id] = evaluate_transpose_leader( gl_id, 2, VL, VF );
+      fit_popLValoresF[gl_id] = evaluate_transpose_leader_level_2( gl_id, VL, VF );
    }
 }
 
