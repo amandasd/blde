@@ -1,5 +1,5 @@
 #define EPS 1e-10
-#define alpha 0.01
+#define alpha 0.000001
 
 #define CONFIG_USE_DOUBLE 1 
 
