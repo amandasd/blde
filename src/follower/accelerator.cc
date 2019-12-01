@@ -273,7 +273,6 @@ int build_kernel( int maxlocalsize )
 }
 
 // -----------------------------------------------------------------------------
-
 void create_buffers( int seed )
 {
    // Buffer (memory on the device) of the programs
@@ -1000,3 +999,5 @@ void acc_leader( real_t* fit_popL, real_t* fit_popLValoresF, int generation, rea
    data.queue.enqueueReadBuffer( data.follower_buffer_popL, CL_TRUE, 0, data.population_leader_size * data.leader_dimension * sizeof( real_t ), popL );
    data.queue.enqueueReadBuffer( data.follower_buffer_popLValoresF, CL_TRUE, 0, data.population_leader_size * data.follower_dimension * sizeof( real_t ), popLValoresF );
 }
+
+

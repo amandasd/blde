@@ -49,6 +49,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
    {
       // leader generation -> uL is represented by gr_id
       // start
+      // TODO: considerar a possibilidade de tirar esses loops
       if( lo_id == 0 )
       {
 	      do
@@ -154,6 +155,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             // follower generation -> uF is represented by lo_id (here n)
             // lo_id (here n) is a follower uF
             // start
+            // TODO: considerar a possibilidade de tirar esses loops
             int idx1; 
             do
             {
@@ -265,7 +267,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          }
       }
    }
-   //TODO
+   // TODO
    barrier(CLK_LOCAL_MEM_FENCE);
 
    if( initialization )
