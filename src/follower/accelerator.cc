@@ -728,7 +728,6 @@ int build_function()
    "   return F1+F2+F3;\n"
    "}\n\n";
 
-   // TODO
    string function_1007_evaluate_level_1 = 
    "   for(int i = 0; i < q; i++)\n"
    "   {\n"

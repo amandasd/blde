@@ -19,8 +19,6 @@
 //TODO: OpenMP
 //TODO: cmake
 //TODO: testar se eh PROFILE, etc...
-//TODO: ver se vale a pena separar os ifs
-//TODO: FUNCTION (fazer do jeito que o Douglas sugeriu, como string para o kernel)
 
 using namespace std;
 
