@@ -6,7 +6,7 @@ seed(int seed, __global uint* seed_global)
 }
 
 __kernel void
-follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t* gl_popF, __local real_t* lo_popF, __local real_t* fitF, __local int* best_idx, __local real_t* uL, __global uint* seed_global, __global real_t* VF, __global real_t* VL, int initialization )
+follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t* gl_popF, __local real_t* lo_popF, __local real_t* fit_popF, __local int* best_idx, __local real_t* uL, __global uint* seed_global, __global real_t* VF, __global real_t* VL, int initialization )
 {
    int lo_id = get_local_id(0); //number of work itens -> <= POPF_SIZE
    int gr_id = get_group_id(0); //number of groups -> POPL_SIZE
@@ -144,9 +144,9 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
       {
          // follower population evaluation -> popF
          // start
-         // fitF -> size of POPF_SIZE
+         // fit_popF -> size of POPF_SIZE
          // TODO: mudar para fit_popF
-         fitF[n] = evaluate_transpose_follower_level_2(n, uL, lo_popF);
+         fit_popF[n] = evaluate_transpose_follower_level_2(n, uL, lo_popF);
          // follower population evaluation -> popF
          // end
 
@@ -207,8 +207,8 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
 
             // follower evaluation -> uF
             // start
-            real_t fitF_new;
-            fitF_new = evaluate_transpose_follower_level_2(n, uL, lo_popF);
+            real_t fit_popF_new;
+            fit_popF_new = evaluate_transpose_follower_level_2(n, uL, lo_popF);
             // follower evaluation -> uF
             // end
 
@@ -216,9 +216,9 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             // start
             // The functions 1001, 1002, ..., 1008 are all minimization functions.
             // They do not have any restriction. 
-            if( fitF_new <= fitF[n] )
+            if( fit_popF_new <= fit_popF[n] )
             {
-               fitF[n] = fitF_new;
+               fit_popF[n] = fit_popF_new;
                for( int i = 0; i < DIMF; i++ )
                {
                   gl_popF[gr_id * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] = lo_popF[n + i * POPF_SIZE];
@@ -257,11 +257,11 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             if( (n < k) && (n + k < POPF_SIZE) )
             {
                // The functions 1001, 1002, ..., 1008 are all minimization functions.
-               //if( fitF[n + k] < fitF[n] ){
-               if( fitF[best_idx[n + k]] <= fitF[best_idx[n]] )
+               //if( fit_popF[n + k] < fit_popF[n] ){
+               if( fit_popF[best_idx[n + k]] <= fit_popF[best_idx[n]] )
                {
                   best_idx[n] = best_idx[n + k];
-                  //fitF[n] = fitF[n + k];
+                  //fit_popF[n] = fit_popF[n + k];
                }
             }
          }
