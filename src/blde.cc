@@ -86,17 +86,15 @@ void blde_init( int argc, char** argv )
    }
 }
 
-int best_individual( real_t* fitness )
+int best_individual( real_t* fit_popL, real_t* fit_popLValoresF)
 {
    int idx = 0;
-   real_t fit_best = fitness[0];
    for( int i = 1; i < data.population_leader_size; i++ )
    {
       // The functions 1001, 1002, ..., 1008 are all minimization functions.
       // They do not have any restriction. 
-      if( fitness[i] <= fit_best )
+      if( fit_popL[i] <= fit_popL[idx] && fit_popLValoresF[i] <= fit_popLValoresF[idx] )
       {     
-         fit_best = fitness[i];
          idx = i;
       }
    }
@@ -130,7 +128,7 @@ void blde_evolve()
 
       // testa criterio de parada
       // start
-		int idx = best_individual( fit_popL );
+		int idx = best_individual( fit_popL, fit_popLValoresF );
       if( fabs(fit_popL[idx]) < alpha )
       {                
           g = data.num_generation_leader;

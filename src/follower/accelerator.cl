@@ -314,13 +314,14 @@ leader( __global real_t* popL, __global real_t* popLValoresF, __global real_t* V
    // gl_id -> solution S (S0, S1, S2, ...) of POPL
 
    real_t fit_VL = evaluate_transpose_leader_level_1( gl_id, VL, VF );
+   real_t fit_VF = evaluate_transpose_leader_level_2( gl_id, VL, VF );
    if( generation == 0 ) 
    {
       fit_popL[gl_id] = evaluate_transpose_leader_level_1( gl_id, popL, popLValoresF );
       fit_popLValoresF[gl_id] = evaluate_transpose_leader_level_2( gl_id, popL, popLValoresF );
    }
 
-	if( fit_VL <= fit_popL[gl_id] )
+	if( fit_VL <= fit_popL[gl_id] && fit_VF <= fit_popLValoresF[gl_id])
    {
       for( int j = 0; j < DIML; j++ )
       {
@@ -331,7 +332,7 @@ leader( __global real_t* popL, __global real_t* popLValoresF, __global real_t* V
          popLValoresF[gl_id + j * POPL_SIZE] = VF[gl_id + j * POPL_SIZE];
       }
       fit_popL[gl_id] = fit_VL;
-      fit_popLValoresF[gl_id] = evaluate_transpose_leader_level_2( gl_id, VL, VF );
+      fit_popLValoresF[gl_id] = fit_VF;
    }
 }
 
