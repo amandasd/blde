@@ -19,10 +19,11 @@
 //TODO: OpenMP
 //TODO: cmake
 //TODO: testar se eh PROFILE, etc...
+//TODO: criterio de parada -> geracoes sem melhoria
 
 using namespace std;
 
-namespace { static struct t_data { int num_generation_leader; int population_leader_size; int leader_dimension; int follower_dimension; int r; int p; int q; int s; bool verbose; } data; };
+namespace { static struct t_data { int num_generation_leader; int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; int r; int p; int q; int s; bool verbose; } data; };
 
 void blde_init( int argc, char** argv ) 
 {
@@ -32,6 +33,8 @@ void blde_init( int argc, char** argv )
 
    Opts.Int.Add( "-gl", "--generation-leader", 10, 0, std::numeric_limits<int>::max() );
    Opts.Int.Add( "-pls", "--population-leader-size", 64, 1, std::numeric_limits<int>::max() );
+
+   Opts.Int.Add( "-pfs", "--population-follower-size", 64, 1, std::numeric_limits<int>::max() );
 
    Opts.Int.Add( "-dl", "--dimension-leader", 8, 0, std::numeric_limits<int>::max() );
    Opts.Int.Add( "-df", "--dimension-follower", 8, 0, std::numeric_limits<int>::max() );
@@ -48,6 +51,8 @@ void blde_init( int argc, char** argv )
 
    data.num_generation_leader = Opts.Int.Get("-gl");
    data.population_leader_size = Opts.Int.Get("-pls");
+
+   data.population_follower_size = Opts.Int.Get("-pfs");
 
    data.leader_dimension = Opts.Int.Get("-dl");
    data.follower_dimension = Opts.Int.Get("-df");
@@ -86,14 +91,13 @@ void blde_init( int argc, char** argv )
    }
 }
 
-int best_individual( real_t* fit_popL, real_t* fit_popLValoresF)
+int best_individual(int idx, real_t* fit_popL, real_t* fit_popLValoresF)
 {
-   int idx = 0;
    for( int i = 1; i < data.population_leader_size; i++ )
    {
       // The functions 1001, 1002, ..., 1008 are all minimization functions.
       // They do not have any restriction. 
-      if( fit_popL[i] <= fit_popL[idx] && fit_popLValoresF[i] <= fit_popLValoresF[idx] )
+      if( (fit_popL[i] <= fit_popL[idx]) && (fit_popLValoresF[i] <= fit_popLValoresF[idx]) )
       {     
          idx = i;
       }
@@ -116,8 +120,11 @@ void blde_evolve()
    // popL and popLValoresF initialization
    // end
 
-   //TODO: criterio de parada -> nEval
-	for( int g = 0; g < data.num_generation_leader; g++ )
+   bool stop = false;
+   int idx = 0;
+   int nEval_leader = data.population_leader_size; // acc_leader(g=0)
+   int nEval_follower = ( 2*data.population_follower_size*data.population_leader_size ) + ( data.population_leader_size ); // ( acc_follower(1) ) + ( acc_leader(g=0) )
+	for( int g = 0; ( g < data.num_generation_leader ) && ( nEval_leader + nEval_follower < nEval ) && !stop ; g++ )
    {  
       // for each uL there is a uF
       // POPL_SIZE uLs run simultaneously, so at the end you have POPL_SIZE uFs 
@@ -126,19 +133,22 @@ void blde_evolve()
       // compare each new pair (uL, uF) with its respective old ones (popL, popLValoresF)
       acc_leader( fit_popL, fit_popLValoresF, g, popL, popLValoresF );
 
+      nEval_leader += data.population_leader_size; // acc_leader
+      nEval_follower += ( 2*data.population_follower_size*data.population_leader_size ) + ( data.population_leader_size ); // ( acc_follower ) + ( acc_leader )
+
       // testa criterio de parada
       // start
-		int idx = best_individual( fit_popL, fit_popLValoresF );
-      if( fabs(fit_popL[idx]) < alpha )
+		idx = best_individual( idx, fit_popL, fit_popLValoresF );
+      if( (fabs(fit_popL[idx]) <= alpha_leader) && (fabs(fit_popLValoresF[idx]) <= alpha_follower) )
       {                
-          g = data.num_generation_leader;
+          stop = true;
       }                
       // testa criterio de parada
       // end
 
       if (data.verbose)
       {
-         printf( "\n[%d] %.12f :: %.12f", g, fit_popL[idx], fit_popLValoresF[idx] ); 
+         printf( "\n[%d] %.12f :: %.12f :: %d :: %d", g, fit_popL[idx], fit_popLValoresF[idx], nEval_leader, nEval_follower ); 
          cout << "\n[Leader] ";
          for( int j = 0; j < data.leader_dimension; j++ ){
             cout << popL[idx + j * data.population_leader_size] << " ";

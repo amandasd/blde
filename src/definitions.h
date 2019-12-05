@@ -1,5 +1,7 @@
 #define EPS 1e-10
-#define alpha 0.000001
+#define alpha_leader 10e-4
+#define alpha_follower 10e-5
+#define nEval 10e8 
 
 #define CONFIG_USE_DOUBLE 1 
 
