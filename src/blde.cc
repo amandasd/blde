@@ -41,7 +41,7 @@ void blde_init( int argc, char** argv )
 
    Opts.Int.Add( "-t", "--threads", -1, 0);
 
-   Opts.String.Add( "-function", "", "", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008", "1009", NULL );
+   Opts.String.Add( "-function", "", "", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008", NULL );
 
    // processing the command-line
    Opts.Process();

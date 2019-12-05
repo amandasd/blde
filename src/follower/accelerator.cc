@@ -267,6 +267,7 @@ int build_kernel( int maxlocalsize )
    if (data.verbose) {
       std::cout << "\nDevice: " << data.device.getInfo<CL_DEVICE_NAME>() << ", Compute units: " << max_cu << ", Max local size: " << max_local_size << std::endl;
       std::cout << "Local size: " << data.local_size << ", Global size: " << data.global_size << ", Work groups: " << data.global_size/data.local_size << std::endl;
+      std::cout << "Variant: " << data.variant << std::endl;
    }
 
    return 0;
@@ -827,7 +828,7 @@ int build_function()
    else if( data.function == str(1008) )
          data.function_str = header + function_getLower_level_1 + function_1005_e_1006_e_1008_getLower_level_2 + function_getUpper_level_1 + function_1005_e_1006_e_1008_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1008_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1008_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1008_evaluate_level_2;
    else
-      fprintf(stderr, "Valid function: 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008 e 1009.\n");
+      fprintf(stderr, "Valid function: 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008.\n");
 
    return 0;
 }
@@ -869,7 +870,7 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    //TODO
    Opts.String.Add( "-variant", "", "RAND", "rand", "TARGET_TO_RAND", "target_to_rand", NULL );
    //Opts.String.Add( "-variant", "", "RAND", "rand", "BEST", "best", "TARGET_TO_RAND", "target_to_rand", "TARGET_TO_BEST", "target_to_best", NULL );
-   Opts.String.Add( "-function", "", "", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008", "1009", NULL );
+   Opts.String.Add( "-function", "", "", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008", NULL );
 
    Opts.Process();
 
