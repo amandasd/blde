@@ -120,11 +120,12 @@ void blde_evolve()
    // popL and popLValoresF initialization
    // end
 
-   bool stop = false;
-   int idx = 0;
+   bool stop_fit = false; bool stop_stag = false;
+   int idx = 0; int g; int stagnation_tolerance = 0;
    int nEval_level_1 = data.population_leader_size; // acc_leader(g=0)
    int nEval_level_2 = ( 2*data.population_follower_size*data.population_leader_size ) + ( data.population_leader_size ); // ( acc_follower(1) ) + ( acc_leader(g=0) )
-	for( int g = 0; ( g < data.num_generation_leader ) && ( nEval_level_1 + nEval_level_2 < nEval ) && !stop ; g++ )
+	//for( g = 0; ( nEval_level_1 + nEval_level_2 < nEval ) && !stop_fit && !stop_stag; g++ )
+	for( g = 0; ( g < data.num_generation_leader ) && ( nEval_level_1 + nEval_level_2 < nEval ) && !stop_fit && !stop_stag; g++ )
    {  
       // for each uL there is a uF
       // POPL_SIZE uLs run simultaneously, so at the end you have POPL_SIZE uFs 
@@ -133,22 +134,25 @@ void blde_evolve()
       // compare each new pair (uL, uF) with its respective old ones (popL, popLValoresF)
       acc_leader( fit_popL, fit_popLValoresF, g, popL, popLValoresF );
 
+      // testa criterio de parada
+      // start
       nEval_level_1 += data.population_leader_size; // acc_leader
       nEval_level_2 += ( 2*data.population_follower_size*data.population_leader_size ) + ( data.population_leader_size ); // ( acc_follower ) + ( acc_leader )
 
-      // testa criterio de parada
-      // start
-		idx = best_individual( idx, fit_popL, fit_popLValoresF );
-      if( (fabs(fit_popL[idx]) <= alpha_leader) && (fabs(fit_popLValoresF[idx]) <= alpha_follower) )
-      {                
-          stop = true;
-      }                
+		int idx_new = best_individual( idx, fit_popL, fit_popLValoresF );
+
+      if( idx_new == idx ) stagnation_tolerance++;
+      else stagnation_tolerance = 0;
+
+      idx = idx_new;
+      if( (fabs(fit_popL[idx]) <= alpha_leader) && (fabs(fit_popLValoresF[idx]) <= alpha_follower) ) stop_fit = true;
+      if( stagnation_tolerance > stag ) stop_stag = true;
       // testa criterio de parada
       // end
 
       if (data.verbose)
       {
-         printf( "\n[%d] %.12f :: %.12f :: %d :: %d", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2 ); 
+         printf( "\n[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag ); 
          cout << "\n[Leader] ";
          for( int j = 0; j < data.leader_dimension; j++ ){
             cout << popL[idx + j * data.population_leader_size] << " ";
@@ -160,7 +164,20 @@ void blde_evolve()
          cout << endl;
       }
 	}
-   printf( "\n" ); 
+   if (data.verbose) printf( "\n" ); 
+
+	idx = best_individual( idx, fit_popL, fit_popLValoresF );
+   printf( "[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag ); 
+   //printf( "[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d\n", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag ); 
+   cout << "\n[Leader] ";
+   for( int j = 0; j < data.leader_dimension; j++ ){
+      cout << popL[idx + j * data.population_leader_size] << " ";
+   }
+   cout << "\n[Follower] ";
+   for( int j = 0; j < data.follower_dimension; j++ ){
+      cout << popLValoresF[idx + j * data.population_leader_size] << " ";
+   }
+   cout << endl;
 
    delete[] popL;
    delete[] popLValoresF;
