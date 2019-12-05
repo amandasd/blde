@@ -122,9 +122,9 @@ void blde_evolve()
 
    bool stop = false;
    int idx = 0;
-   int nEval_leader = data.population_leader_size; // acc_leader(g=0)
-   int nEval_follower = ( 2*data.population_follower_size*data.population_leader_size ) + ( data.population_leader_size ); // ( acc_follower(1) ) + ( acc_leader(g=0) )
-	for( int g = 0; ( g < data.num_generation_leader ) && ( nEval_leader + nEval_follower < nEval ) && !stop ; g++ )
+   int nEval_level_1 = data.population_leader_size; // acc_leader(g=0)
+   int nEval_level_2 = ( 2*data.population_follower_size*data.population_leader_size ) + ( data.population_leader_size ); // ( acc_follower(1) ) + ( acc_leader(g=0) )
+	for( int g = 0; ( g < data.num_generation_leader ) && ( nEval_level_1 + nEval_level_2 < nEval ) && !stop ; g++ )
    {  
       // for each uL there is a uF
       // POPL_SIZE uLs run simultaneously, so at the end you have POPL_SIZE uFs 
@@ -133,8 +133,8 @@ void blde_evolve()
       // compare each new pair (uL, uF) with its respective old ones (popL, popLValoresF)
       acc_leader( fit_popL, fit_popLValoresF, g, popL, popLValoresF );
 
-      nEval_leader += data.population_leader_size; // acc_leader
-      nEval_follower += ( 2*data.population_follower_size*data.population_leader_size ) + ( data.population_leader_size ); // ( acc_follower ) + ( acc_leader )
+      nEval_level_1 += data.population_leader_size; // acc_leader
+      nEval_level_2 += ( 2*data.population_follower_size*data.population_leader_size ) + ( data.population_leader_size ); // ( acc_follower ) + ( acc_leader )
 
       // testa criterio de parada
       // start
@@ -148,7 +148,7 @@ void blde_evolve()
 
       if (data.verbose)
       {
-         printf( "\n[%d] %.12f :: %.12f :: %d :: %d", g, fit_popL[idx], fit_popLValoresF[idx], nEval_leader, nEval_follower ); 
+         printf( "\n[%d] %.12f :: %.12f :: %d :: %d", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2 ); 
          cout << "\n[Leader] ";
          for( int j = 0; j < data.leader_dimension; j++ ){
             cout << popL[idx + j * data.population_leader_size] << " ";
