@@ -145,7 +145,6 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          // follower population evaluation -> popF
          // start
          // fit_popF -> size of POPF_SIZE
-         // TODO: mudar para fit_popF
          fit_popF[n] = evaluate_transpose_follower_level_2(n, uL, lo_popF);
          // follower population evaluation -> popF
          // end

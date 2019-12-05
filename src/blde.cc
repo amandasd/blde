@@ -158,31 +158,9 @@ void blde_evolve()
             cout << popLValoresF[idx + j * data.population_leader_size] << " ";
          }
          cout << endl;
-
       }
 	}
    printf( "\n" ); 
-
-   // best individual
-   // start
-   //int idx = best_individual( fit_popL );
-   // best individual
-   // end
-
-   // print best individual
-   // start
-   //cout << "[Leader] ";
-   //for( int j = 0; j < data.leader_dimension; j++ ){
-   //   cout << popL[idx + j * data.population_leader_size] << " ";
-   //}
-   //cout << "Fitness: " << fit_popL[idx] << endl;
-   //cout << "[Follower] ";
-   //for( int j = 0; j < data.follower_dimension; j++ ){
-   //   cout << popLValoresF[idx + j * data.population_leader_size] << " ";
-   //}
-   //cout << "Fitness: " << fit_popLValoresF[idx] << endl;
-   // print best individual
-   // end
 
    delete[] popL;
    delete[] popLValoresF;
