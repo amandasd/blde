@@ -1,7 +1,8 @@
 #define EPS 1e-10
-#define alpha_leader 10e-4
-#define alpha_follower 10e-5
-#define nEval 10e8 
+#define alpha_leader 10e-3
+#define alpha_follower 10e-4
+#define nEval 10e7 
+#define stag 10e3/2
 
 #define CONFIG_USE_DOUBLE 1 
 
