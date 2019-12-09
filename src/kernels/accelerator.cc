@@ -251,7 +251,6 @@ int build_kernel( int maxlocalsize )
       data.local_size = max_local_size;
    }
    // One leader individual per work-group
-   //TODO
    data.global_size = data.population_leader_size * data.local_size;
    data.kernel_seed     = cl::Kernel( program, "seed" );
    data.kernel_follower = cl::Kernel( program, "follower" );

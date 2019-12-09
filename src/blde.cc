@@ -17,9 +17,7 @@
 //#endif
 
 //TODO: OpenMP
-//TODO: cmake
 //TODO: testar se eh PROFILE, etc...
-//TODO: perguntar sobre a diferenca entre seed e rand (olhar codigo da Jaque)
 
 using namespace std;
 
