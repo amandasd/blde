@@ -15,28 +15,24 @@
 #include "../util/CmdLineParser.h"
 #include "../util/Util.h"
 
-//TODO
-//#include <Poco/Path.h>
+#include <Poco/Path.h>
 
-//TODO
 /* Macros to stringify an expansion of a macro/definition */
 #define xstr(a) str(a)
 #define str(a) #a
 
 using namespace std;
 
-//TODO
 std::string getAbsoluteDirectory(std::string filepath) 
 {
-   //Poco::Path p(filepath);
-   //string filename = p.getFileName();
-   //p.makeAbsolute();
-   //string absolute_path = p.toString();
+   Poco::Path p(filepath);
+   string filename = p.getFileName();
+   p.makeAbsolute();
+   string absolute_path = p.toString();
 
    ///* The absolute_path consists of: directory + filename; so, to get
    //   only the directory, it suffices to do: absolute_path - filename */
-   //return std::string(absolute_path, 0, absolute_path.length() - filename.length());
-   return std::string("/home/amanda/public/projetos/blde/src");
+   return std::string(absolute_path, 0, absolute_path.length() - filename.length());
 }
 
 /** ****************************************************************** **/
@@ -187,9 +183,8 @@ int build_kernel( int maxlocalsize )
     * when two or more problems are built into the same build directory.
       The directory of the executable binary is prefixed here so that OpenCL
       will find the kernels regardless of user's current directory. */
-   //TODO
-   //std::string opencl_file = data.executable_directory + std::string(std::string(xstr(LABEL)) + "-accelerator.cl");
-   std::string opencl_file = data.executable_directory +  std::string("/follower/accelerator.cl");
+
+   std::string opencl_file = data.executable_directory + std::string("accelerator.cl");
    ifstream file(opencl_file.c_str());
    string kernel_str( istreambuf_iterator<char>(file), ( istreambuf_iterator<char>()) );
 
@@ -211,12 +206,9 @@ int build_kernel( int maxlocalsize )
    try 
    {
       /* Pass the following definition to the OpenCL compiler:
-            -I<executable_absolute_directory>/INCLUDE_RELATIVE_DIR
-         where <executable_absolute_directory> is the current directory
-         of the executable binary and INCLUDE_RELATIVE_DIR is a relative
-         subdirectory where the assembled source files will be put by CMake. */
-      //TODO
-      //std::string flags = std::string(" -I" + data.executable_directory + std::string(xstr(INCLUDE_RELATIVE_DIR)));
+            -I<executable_absolute_directory>/follower where
+            <executable_absolute_directory> is the current directory of the
+            executable binary. */
       std::string flags = std::string( " -I" + data.executable_directory + std::string("/follower") 
 #ifdef CONFIG_USE_DOUBLE
       + " -DCONFIG_USE_DOUBLE " 
