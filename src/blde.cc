@@ -174,17 +174,17 @@ void blde_evolve()
    if (data.verbose) printf( "\n" ); 
 
 	idx = best_individual( idx, fit_popL, fit_popLValoresF );
-   printf( "[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag ); 
-   //printf( "[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d\n", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag ); 
-   cout << "\n[Leader] ";
-   for( int j = 0; j < data.leader_dimension; j++ ){
-      cout << popL[idx + j * data.population_leader_size] << " ";
-   }
-   cout << "\n[Follower] ";
-   for( int j = 0; j < data.follower_dimension; j++ ){
-      cout << popLValoresF[idx + j * data.population_leader_size] << " ";
-   }
-   cout << endl;
+   //printf( "[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag ); 
+   printf( "[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d\n", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag ); 
+   //cout << "\n[Leader] ";
+   //for( int j = 0; j < data.leader_dimension; j++ ){
+   //   cout << popL[idx + j * data.population_leader_size] << " ";
+   //}
+   //cout << "\n[Follower] ";
+   //for( int j = 0; j < data.follower_dimension; j++ ){
+   //   cout << popLValoresF[idx + j * data.population_leader_size] << " ";
+   //}
+   //cout << endl;
 
    delete[] popL;
    delete[] popLValoresF;
