@@ -270,16 +270,32 @@ int build_kernel( int maxlocalsize )
 void create_buffers( int seed )
 {
    // Buffer (memory on the device) of the programs
-   data.seed_buffer = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.global_size * sizeof( uint ) );
+   data.seed_buffer = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.global_size * sizeof( uint ) );
 
-   data.follower_buffer_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
-   data.follower_buffer_popLValoresF = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
-   data.follower_buffer_popF = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_follower_size * data.follower_dimension * data.population_leader_size * sizeof( real_t ) );
-   data.follower_buffer_vf = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
-   data.follower_buffer_vl = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
+   data.follower_buffer_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE
+#if ! defined( PROFILING )
+         | CL_MEM_ALLOC_HOST_PTR
+#endif
+         , data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
+   data.follower_buffer_popLValoresF = cl::Buffer( data.context, CL_MEM_READ_WRITE
+#if ! defined( PROFILING )
+         | CL_MEM_ALLOC_HOST_PTR
+#endif
+         , data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
+   data.follower_buffer_popF = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_follower_size * data.follower_dimension * data.population_leader_size * sizeof( real_t ) );
+   data.follower_buffer_vf = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
+   data.follower_buffer_vl = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
 
-   data.leader_buffer_fit_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * sizeof( real_t ) );
-   data.leader_buffer_fit_popLValoresF = cl::Buffer( data.context, CL_MEM_WRITE_ONLY | CL_MEM_ALLOC_HOST_PTR, data.population_leader_size * sizeof( real_t ) );
+   data.leader_buffer_fit_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE
+#if ! defined( PROFILING )
+         | CL_MEM_ALLOC_HOST_PTR
+#endif
+         , data.population_leader_size * sizeof( real_t ) );
+   data.leader_buffer_fit_popLValoresF = cl::Buffer( data.context, CL_MEM_WRITE_ONLY
+#if ! defined( PROFILING )
+         | CL_MEM_ALLOC_HOST_PTR
+#endif
+         , data.population_leader_size * sizeof( real_t ) );
 
    data.kernel_seed.setArg( 0, seed );
    data.kernel_seed.setArg( 1, data.seed_buffer );
