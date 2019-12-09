@@ -30,7 +30,7 @@ IF( NOT OPENCL_HAS_CPP_BINDINGS )
 ENDIF( NOT OPENCL_HAS_CPP_BINDINGS )
 
 
-add_library(follower accelerator.cc)
+add_library(kernels accelerator.cc)
 
 # Copy to the binary directory all the individual OpenCL kernels (they are compiled on-the-fly)
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/accelerator.cl ${CMAKE_BINARY_DIR}/accelerator.cl COPYONLY)

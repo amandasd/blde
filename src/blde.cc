@@ -7,7 +7,7 @@
 #include <sstream>
 #include <iostream> 
 #include <fstream> 
-#include "follower/accelerator.h"
+#include "kernels/accelerator.h"
 #include "blde.h"
 #include "definitions.h"
 #include "util/CmdLineParser.h"

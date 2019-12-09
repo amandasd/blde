@@ -43,11 +43,11 @@ endif()
 include_directories( ${Poco_INCLUDE_DIR} )
 #############################################################################
 
-add_subdirectory(follower)
+add_subdirectory(kernels)
 add_subdirectory(util)
 
 add_library(blde blde.cc)
 
 add_executable(main main.cc)
-target_link_libraries(main blde follower util ${OPENCL_LIBRARIES} ${Poco_LIBRARIES} pthread )
+target_link_libraries(main blde kernels util ${OPENCL_LIBRARIES} ${Poco_LIBRARIES} pthread )
 set_target_properties(main PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})

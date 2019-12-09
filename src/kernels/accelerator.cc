@@ -209,7 +209,7 @@ int build_kernel( int maxlocalsize )
             -I<executable_absolute_directory>/follower where
             <executable_absolute_directory> is the current directory of the
             executable binary. */
-      std::string flags = std::string( " -I" + data.executable_directory + std::string("/follower") 
+      std::string flags = std::string( " -I" + data.executable_directory + std::string("/kernels") 
 #ifdef CONFIG_USE_DOUBLE
       + " -DCONFIG_USE_DOUBLE " 
 #endif
