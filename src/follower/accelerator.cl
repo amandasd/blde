@@ -2,7 +2,7 @@ __kernel void
 seed(int seed, __global uint* seed_global)
 {
    int gl_id = get_global_id(0); //POPL_SIZE * POPF_SIZE
-   seed_global[gl_id] = seed + gl_id + 1; // Make each work-item random stream have a different seed
+   seed_global[gl_id] = lcg( seed + gl_id + 1 ); // Make each work-item random stream have a different seed
 }
 
 __kernel void
