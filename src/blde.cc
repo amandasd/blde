@@ -93,16 +93,23 @@ void blde_init( int argc, char** argv )
 
 int best_individual(int idx, real_t* fit_popL, real_t* fit_popLValoresF)
 {
+   int idx_level_1 = 0; int idx_level_2 = 0;
    for( int i = 1; i < data.population_leader_size; i++ )
    {
+      // TODO: which option: #1 or #2?
       // The functions 1001, 1002, ..., 1008 are all minimization functions.
       // They do not have any restriction. 
-      if( (fit_popL[i] <= fit_popL[idx]) && (fit_popLValoresF[i] <= fit_popLValoresF[idx]) )
-      {     
-         idx = i;
-      }
+      // Option #1
+      //if( (fit_popL[i] <= fit_popL[idx]) && (fit_popLValoresF[i] <= fit_popLValoresF[idx]) ) { idx = i; }
+      // Option #2
+      if( (fit_popL[i] <= fit_popL[idx_level_1]) ) { idx_level_1 = i; }
+      if( (fit_popLValoresF[i] <= fit_popLValoresF[idx_level_2]) ) { idx_level_2 = i; }
    }
-   return idx;
+   // Option #1
+   //return idx;
+   // Option #2
+   if( (fit_popL[idx_level_2] <= fit_popLValoresF[idx_level_1]) ) { return idx_level_2; }
+   else { return idx_level_1; }
 }
 
 void blde_evolve()
