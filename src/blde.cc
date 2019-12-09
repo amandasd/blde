@@ -19,7 +19,7 @@
 //TODO: OpenMP
 //TODO: cmake
 //TODO: testar se eh PROFILE, etc...
-//TODO: criterio de parada -> geracoes sem melhoria
+//TODO: perguntar sobre a diferenca entre seed e rand (olhar codigo da Jaque)
 
 using namespace std;
 
