@@ -171,8 +171,6 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
                idx3 = Int( &seed, POPF_SIZE );
             } while(idx3 == n || idx3 == idx1 || idx3 == idx2);
 
-            //TODO: mudar para uF
-
             // solution S is a array of size D
             // popF => S0D0 | S1D0 | S2D0 | ... | S0D1 | S1D1 | S2D1 | ...
             // popF -> POPF_SIZE * DIMF
@@ -183,6 +181,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             {
                if( (i == jRand) || (Real( &seed ) < CR) )
                {	
+                  //TODO
 #if defined(VARIANT_rand) //DE/rand/1/bin
                   lo_popF[n + i * POPF_SIZE] = lo_popF[idx1 + i * POPF_SIZE] + F*(lo_popF[idx2 + i * POPF_SIZE] - lo_popF[idx3 + i * POPF_SIZE]);
                   //lo_popF[n + i * POPF_SIZE] = gl_popF[idx1 * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] + F*(gl_popF[idx2 * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] - gl_popF[idx3 * (POPF_SIZE * DIMF) + n + i * POPF_SIZE]);
