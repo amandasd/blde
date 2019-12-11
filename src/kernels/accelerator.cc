@@ -39,7 +39,7 @@ std::string getAbsoluteDirectory(std::string filepath)
 /** ***************************** TYPES ****************************** **/
 /** ****************************************************************** **/
 
-namespace { static struct t_data { int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; int num_generation_follower; real_t crossover_rate; real_t f; int r; int p; int q; int s; std::string variant; std::string function; std::string function_str; unsigned local_size; unsigned global_size; cl::Device device; cl::Context context; cl::Kernel kernel_seed; cl::Kernel kernel_follower; cl::Kernel kernel_leader; cl::CommandQueue queue; cl::Buffer seed_buffer; cl::Buffer follower_buffer_popL; cl::Buffer follower_buffer_popLValoresF; cl::Buffer follower_buffer_popF; cl::Buffer follower_buffer_vf; cl::Buffer follower_buffer_vl; cl::Buffer leader_buffer_fit_popL; cl::Buffer leader_buffer_fit_popLValoresF; std::string executable_directory; bool verbose; } data; };
+namespace { static struct t_data { int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; int num_generation_follower; unsigned local_size; unsigned global_size; cl::Device device; cl::Context context; cl::Kernel kernel_seed; cl::Kernel kernel_follower; cl::Kernel kernel_leader; cl::CommandQueue queue; cl::Buffer seed_buffer; cl::Buffer follower_buffer_popL; cl::Buffer follower_buffer_popLValoresF; cl::Buffer follower_buffer_popF; cl::Buffer follower_buffer_vf; cl::Buffer follower_buffer_vl; cl::Buffer leader_buffer_fit_popL; cl::Buffer leader_buffer_fit_popLValoresF; std::string executable_directory; bool verbose; } data; };
 
 /** ****************************************************************** **/
 /** *********************** AUXILIARY FUNCTION *********************** **/
@@ -177,149 +177,7 @@ int opencl_init( int platform_id, int device_id, cl_device_type type )
 }
 
 // -----------------------------------------------------------------------------
-int build_kernel( int maxlocalsize )
-{
-   /* Use a prefix (the given label) to minimize the likelihood of collisions
-    * when two or more problems are built into the same build directory.
-      The directory of the executable binary is prefixed here so that OpenCL
-      will find the kernels regardless of user's current directory. */
-
-   std::string opencl_file = data.executable_directory + std::string("accelerator.cl");
-   ifstream file(opencl_file.c_str());
-   string kernel_str( istreambuf_iterator<char>(file), ( istreambuf_iterator<char>()) );
-
-   string program_str;
-   program_str = 
-      "#define POPL_SIZE " + util::ToString( data.population_leader_size ) + "\n#define POPF_SIZE " + util::ToString( data.population_follower_size ) + "\n" +
-      "#define DIML " + util::ToString( data.leader_dimension ) + "\n#define DIMF " + util::ToString( data.follower_dimension ) + "\n" +
-      "#define GENF_NUM " + util::ToString( data.num_generation_follower ) + "\n#define CR " + util::ToString( data.crossover_rate ) + "\n" + 
-      "#define F " + util::ToString( data.f ) + "\n#define r " + util::ToString( data.r ) + "\n" + 
-      "#define p " + util::ToString( data.p ) + "\n#define q " + util::ToString( data.q ) + "\n#define s " + util::ToString( data.s ) + "\n" + 
-      data.function_str + kernel_str;
-   //cout << program_str << endl;
-
-   cl::Program::Sources source( 1, make_pair( program_str.c_str(), program_str.size() ) );
-   
-   cl::Program program( data.context, source );
-
-   vector<cl::Device> device; device.push_back( data.device );
-   try 
-   {
-      /* Pass the following definition to the OpenCL compiler:
-            -I<executable_absolute_directory>/follower where
-            <executable_absolute_directory> is the current directory of the
-            executable binary. */
-      std::string flags = std::string( " -I" + data.executable_directory + std::string("/kernels") 
-#ifdef CONFIG_USE_DOUBLE
-      + " -DCONFIG_USE_DOUBLE " 
-#endif
-      + " -DVARIANT_" + util::ToLower( data.variant ) );
-      program.build( device, flags.c_str() );
-   }
-   catch( cl::Error& e )
-   {
-      if( e.err() == CL_BUILD_PROGRAM_FAILURE )
-      {
-         cerr << "Build Log:\t " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( data.device ) << std::endl;
-      }
-      throw;
-   }
-
-   unsigned max_cu = data.device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
-   unsigned max_local_size;
-   if( maxlocalsize > 0 )
-   {
-      max_local_size = maxlocalsize;
-   }
-   else 
-   {
-      max_local_size = fmin( data.device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>(), data.device.getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>()[0] );
-   
-      //It is necessary to respect the local memory size. Depending on the
-      //maximum local size, there will not be enough space to allocate the
-      //local variables.  The local size depends on the maximum local size. 
-      //The division by 4: 1 local vector in the DP and PDP kernels (both are float vectors, so the division by 4 bytes)
-      max_local_size = fmin( max_local_size, data.device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>() / 4 );
-   }
-
-   if( data.population_follower_size < max_local_size )
-   {
-      data.local_size = data.population_follower_size;
-   }
-   else
-   {
-      data.local_size = max_local_size;
-   }
-   // One leader individual per work-group
-   data.global_size = data.population_leader_size * data.local_size;
-   data.kernel_seed     = cl::Kernel( program, "seed" );
-   data.kernel_follower = cl::Kernel( program, "follower" );
-   data.kernel_leader   = cl::Kernel( program, "leader" );
-
-   if (data.verbose) {
-      std::cout << "\nDevice: " << data.device.getInfo<CL_DEVICE_NAME>() << ", Compute units: " << max_cu << ", Max local size: " << max_local_size << std::endl;
-      std::cout << "Local size: " << data.local_size << ", Global size: " << data.global_size << ", Work groups: " << data.global_size/data.local_size << std::endl;
-      std::cout << "Variant: " << data.variant << std::endl;
-   }
-
-   return 0;
-}
-
-// -----------------------------------------------------------------------------
-void create_buffers( int seed )
-{
-   // Buffer (memory on the device) of the programs
-   data.seed_buffer = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.global_size * sizeof( uint ) );
-
-   data.follower_buffer_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE
-#if ! defined( PROFILING )
-         | CL_MEM_ALLOC_HOST_PTR
-#endif
-         , data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
-   data.follower_buffer_popLValoresF = cl::Buffer( data.context, CL_MEM_READ_WRITE
-#if ! defined( PROFILING )
-         | CL_MEM_ALLOC_HOST_PTR
-#endif
-         , data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
-   data.follower_buffer_popF = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_follower_size * data.follower_dimension * data.population_leader_size * sizeof( real_t ) );
-   data.follower_buffer_vf = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
-   data.follower_buffer_vl = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
-
-   data.leader_buffer_fit_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE
-#if ! defined( PROFILING )
-         | CL_MEM_ALLOC_HOST_PTR
-#endif
-         , data.population_leader_size * sizeof( real_t ) );
-   data.leader_buffer_fit_popLValoresF = cl::Buffer( data.context, CL_MEM_WRITE_ONLY
-#if ! defined( PROFILING )
-         | CL_MEM_ALLOC_HOST_PTR
-#endif
-         , data.population_leader_size * sizeof( real_t ) );
-
-   data.kernel_seed.setArg( 0, seed );
-   data.kernel_seed.setArg( 1, data.seed_buffer );
-
-   data.kernel_follower.setArg( 0, data.follower_buffer_popL );
-   data.kernel_follower.setArg( 1, data.follower_buffer_popLValoresF );
-   data.kernel_follower.setArg( 2, data.follower_buffer_popF );
-   data.kernel_follower.setArg( 3, data.population_follower_size * data.follower_dimension * sizeof( real_t ), NULL );
-   data.kernel_follower.setArg( 4, data.population_follower_size * sizeof( real_t ), NULL );
-   data.kernel_follower.setArg( 5, data.population_follower_size * sizeof( int ), NULL );
-   data.kernel_follower.setArg( 6, data.leader_dimension * sizeof( real_t ), NULL );
-   data.kernel_follower.setArg( 7, data.seed_buffer );
-   data.kernel_follower.setArg( 8, data.follower_buffer_vf );
-   data.kernel_follower.setArg( 9, data.follower_buffer_vl );
-
-   data.kernel_leader.setArg( 0, data.follower_buffer_popL );
-   data.kernel_leader.setArg( 1, data.follower_buffer_popLValoresF );
-   data.kernel_leader.setArg( 2, data.follower_buffer_vf );
-   data.kernel_leader.setArg( 3, data.follower_buffer_vl );
-   data.kernel_leader.setArg( 4, data.leader_buffer_fit_popL );
-   data.kernel_leader.setArg( 5, data.leader_buffer_fit_popLValoresF );
-}
-
-// -----------------------------------------------------------------------------
-int build_function()
+string build_function( string function )
 {
    string header = 
   "\n// Check for the availability (and enable) of double precision support\n"
@@ -818,27 +676,170 @@ int build_function()
    "}\n\n";
 
 
-   if( data.function == str(1001) )
-      data.function_str = header + function_getLower_level_1 + function_1001_e_1003_getLower_level_2 + function_getUpper_level_1 + function_1001_e_1003_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1001_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1001_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1001_evaluate_level_2;
-   else if( data.function == str(1002) )
-      data.function_str = header + function_getLower_level_1 + function_1002_e_1004_e_1007_getLower_level_2 + function_1002_e_1004_e_1007_getUpper_level_1 + function_1002_e_1004_e_1007_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1002_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1002_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1002_evaluate_level_2;
-   else if( data.function == str(1003) )
-      data.function_str = header + function_getLower_level_1 + function_1001_e_1003_getLower_level_2 + function_getUpper_level_1 + function_1001_e_1003_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1003_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1003_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1003_evaluate_level_2;
-   else if( data.function == str(1004) )
-      data.function_str = header + function_1004_getLower_level_1 + function_1002_e_1004_e_1007_getLower_level_2 + function_1002_e_1004_e_1007_getUpper_level_1 + function_1002_e_1004_e_1007_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1004_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1004_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1004_evaluate_level_2;
+   string function_str;
+   if( function == str(1001) )
+      return function_str = header + function_getLower_level_1 + function_1001_e_1003_getLower_level_2 + function_getUpper_level_1 + function_1001_e_1003_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1001_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1001_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1001_evaluate_level_2;
+   else if( function == str(1002) )
+      return function_str = header + function_getLower_level_1 + function_1002_e_1004_e_1007_getLower_level_2 + function_1002_e_1004_e_1007_getUpper_level_1 + function_1002_e_1004_e_1007_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1002_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1002_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1002_evaluate_level_2;
+   else if( function == str(1003) )
+      return function_str = header + function_getLower_level_1 + function_1001_e_1003_getLower_level_2 + function_getUpper_level_1 + function_1001_e_1003_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1003_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1003_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1003_evaluate_level_2;
+   else if( function == str(1004) )
+      return function_str = header + function_1004_getLower_level_1 + function_1002_e_1004_e_1007_getLower_level_2 + function_1002_e_1004_e_1007_getUpper_level_1 + function_1002_e_1004_e_1007_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1004_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1004_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1004_evaluate_level_2;
 
-   else if( data.function == str(1005) )
-      data.function_str = header + function_getLower_level_1 + function_1005_e_1006_e_1008_getLower_level_2 + function_getUpper_level_1 + function_1005_e_1006_e_1008_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1005_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1005_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1005_evaluate_level_2;
-   else if( data.function == str(1006) )
-      data.function_str = header + function_getLower_level_1 + function_1005_e_1006_e_1008_getLower_level_2 + function_getUpper_level_1 + function_1005_e_1006_e_1008_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1006_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1006_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1006_evaluate_level_2;
-   else if( data.function == str(1007) )
-      data.function_str = header + function_getLower_level_1 + function_1002_e_1004_e_1007_getLower_level_2 + function_1002_e_1004_e_1007_getUpper_level_1 + function_1002_e_1004_e_1007_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1007_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1007_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1007_evaluate_level_2;
-   else if( data.function == str(1008) )
-         data.function_str = header + function_getLower_level_1 + function_1005_e_1006_e_1008_getLower_level_2 + function_getUpper_level_1 + function_1005_e_1006_e_1008_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1008_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1008_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1008_evaluate_level_2;
+   else if( function == str(1005) )
+      return function_str = header + function_getLower_level_1 + function_1005_e_1006_e_1008_getLower_level_2 + function_getUpper_level_1 + function_1005_e_1006_e_1008_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1005_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1005_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1005_evaluate_level_2;
+   else if( function == str(1006) )
+      return function_str = header + function_getLower_level_1 + function_1005_e_1006_e_1008_getLower_level_2 + function_getUpper_level_1 + function_1005_e_1006_e_1008_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1006_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1006_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1006_evaluate_level_2;
+   else if( function == str(1007) )
+      return function_str = header + function_getLower_level_1 + function_1002_e_1004_e_1007_getLower_level_2 + function_1002_e_1004_e_1007_getUpper_level_1 + function_1002_e_1004_e_1007_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1007_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1007_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1007_evaluate_level_2;
+   else if( function == str(1008) )
+         return function_str = header + function_getLower_level_1 + function_1005_e_1006_e_1008_getLower_level_2 + function_getUpper_level_1 + function_1005_e_1006_e_1008_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1008_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1008_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1008_evaluate_level_2;
    else
       fprintf(stderr, "Valid function: 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008.\n");
+}
+
+// -----------------------------------------------------------------------------
+int build_kernel( int maxlocalsize, string function, string variant, real_t crossover_rate, real_t f, int r, int p, int q, int s )
+{
+   /* Use a prefix (the given label) to minimize the likelihood of collisions
+    * when two or more problems are built into the same build directory.
+      The directory of the executable binary is prefixed here so that OpenCL
+      will find the kernels regardless of user's current directory. */
+
+   std::string opencl_file = data.executable_directory + std::string("accelerator.cl");
+   ifstream file(opencl_file.c_str());
+   string kernel_str( istreambuf_iterator<char>(file), ( istreambuf_iterator<char>()) );
+
+   string function_str = build_function( function );
+
+   string program_str;
+   program_str = 
+      "#define POPL_SIZE " + util::ToString( data.population_leader_size ) + "\n#define POPF_SIZE " + util::ToString( data.population_follower_size ) + "\n" +
+      "#define DIML " + util::ToString( data.leader_dimension ) + "\n#define DIMF " + util::ToString( data.follower_dimension ) + "\n" +
+      "#define GENF_NUM " + util::ToString( data.num_generation_follower ) + "\n#define CR " + util::ToString( crossover_rate ) + "\n" + 
+      "#define F " + util::ToString( f ) + "\n#define r " + util::ToString( r ) + "\n" + 
+      "#define p " + util::ToString( p ) + "\n#define q " + util::ToString( q ) + "\n#define s " + util::ToString( s ) + "\n" + 
+      function_str + kernel_str;
+   //cout << program_str << endl;
+
+   cl::Program::Sources source( 1, make_pair( program_str.c_str(), program_str.size() ) );
+   
+   cl::Program program( data.context, source );
+
+   vector<cl::Device> device; device.push_back( data.device );
+   try 
+   {
+      /* Pass the following definition to the OpenCL compiler:
+            -I<executable_absolute_directory>/follower where
+            <executable_absolute_directory> is the current directory of the
+            executable binary. */
+      std::string flags = std::string( " -I" + data.executable_directory + std::string("/kernels") 
+#ifdef CONFIG_USE_DOUBLE
+      + " -DCONFIG_USE_DOUBLE " 
+#endif
+      + " -DVARIANT_" + util::ToLower( variant ) );
+      program.build( device, flags.c_str() );
+   }
+   catch( cl::Error& e )
+   {
+      if( e.err() == CL_BUILD_PROGRAM_FAILURE )
+      {
+         cerr << "Build Log:\t " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( data.device ) << std::endl;
+      }
+      throw;
+   }
+
+   unsigned max_cu = data.device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
+   unsigned max_local_size;
+   if( maxlocalsize > 0 )
+   {
+      max_local_size = maxlocalsize;
+   }
+   else 
+   {
+      max_local_size = fmin( data.device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>(), data.device.getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>()[0] );
+   
+      //It is necessary to respect the local memory size. Depending on the
+      //maximum local size, there will not be enough space to allocate the
+      //local variables.  The local size depends on the maximum local size. 
+      //The division by 4: 1 local vector in the DP and PDP kernels (both are float vectors, so the division by 4 bytes)
+      max_local_size = fmin( max_local_size, data.device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>() / 4 );
+   }
+
+   if( data.population_follower_size < max_local_size )
+   {
+      data.local_size = data.population_follower_size;
+   }
+   else
+   {
+      data.local_size = max_local_size;
+   }
+   // One leader individual per work-group
+   data.global_size = data.population_leader_size * data.local_size;
+   data.kernel_seed     = cl::Kernel( program, "seed" );
+   data.kernel_follower = cl::Kernel( program, "follower" );
+   data.kernel_leader   = cl::Kernel( program, "leader" );
+
+   if (data.verbose) {
+      std::cout << "\nDevice: " << data.device.getInfo<CL_DEVICE_NAME>() << ", Compute units: " << max_cu << ", Max local size: " << max_local_size << std::endl;
+      std::cout << "Local size: " << data.local_size << ", Global size: " << data.global_size << ", Work groups: " << data.global_size/data.local_size << std::endl;
+      std::cout << "Variant: " << variant << std::endl;
+   }
 
    return 0;
+}
+
+// -----------------------------------------------------------------------------
+void create_buffers( int seed )
+{
+   // Buffer (memory on the device) of the programs
+   data.seed_buffer = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.global_size * sizeof( uint ) );
+
+   data.follower_buffer_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE
+#if ! defined( PROFILING )
+         | CL_MEM_ALLOC_HOST_PTR
+#endif
+         , data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
+   data.follower_buffer_popLValoresF = cl::Buffer( data.context, CL_MEM_READ_WRITE
+#if ! defined( PROFILING )
+         | CL_MEM_ALLOC_HOST_PTR
+#endif
+         , data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
+   data.follower_buffer_popF = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_follower_size * data.follower_dimension * data.population_leader_size * sizeof( real_t ) );
+   data.follower_buffer_vf = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
+   data.follower_buffer_vl = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
+
+   data.leader_buffer_fit_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE
+#if ! defined( PROFILING )
+         | CL_MEM_ALLOC_HOST_PTR
+#endif
+         , data.population_leader_size * sizeof( real_t ) );
+   data.leader_buffer_fit_popLValoresF = cl::Buffer( data.context, CL_MEM_WRITE_ONLY
+#if ! defined( PROFILING )
+         | CL_MEM_ALLOC_HOST_PTR
+#endif
+         , data.population_leader_size * sizeof( real_t ) );
+
+   data.kernel_seed.setArg( 0, seed );
+   data.kernel_seed.setArg( 1, data.seed_buffer );
+
+   data.kernel_follower.setArg( 0, data.follower_buffer_popL );
+   data.kernel_follower.setArg( 1, data.follower_buffer_popLValoresF );
+   data.kernel_follower.setArg( 2, data.follower_buffer_popF );
+   data.kernel_follower.setArg( 3, data.population_follower_size * data.follower_dimension * sizeof( real_t ), NULL );
+   data.kernel_follower.setArg( 4, data.population_follower_size * sizeof( real_t ), NULL );
+   data.kernel_follower.setArg( 5, data.population_follower_size * sizeof( int ), NULL );
+   data.kernel_follower.setArg( 6, data.leader_dimension * sizeof( real_t ), NULL );
+   data.kernel_follower.setArg( 7, data.seed_buffer );
+   data.kernel_follower.setArg( 8, data.follower_buffer_vf );
+   data.kernel_follower.setArg( 9, data.follower_buffer_vl );
+
+   data.kernel_leader.setArg( 0, data.follower_buffer_popL );
+   data.kernel_leader.setArg( 1, data.follower_buffer_popLValoresF );
+   data.kernel_leader.setArg( 2, data.follower_buffer_vf );
+   data.kernel_leader.setArg( 3, data.follower_buffer_vl );
+   data.kernel_leader.setArg( 4, data.leader_buffer_fit_popL );
+   data.kernel_leader.setArg( 5, data.leader_buffer_fit_popLValoresF );
 }
 
 /** ****************************************************************** **/
@@ -892,17 +893,6 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    data.leader_dimension = Opts.Int.Get("-dl");
    data.follower_dimension = Opts.Int.Get("-df");
 
-   data.crossover_rate = Opts.Float.Get("-cr");
-   data.f = Opts.Float.Get("-f");
-
-   data.variant = Opts.String.Get("-variant");
-   data.function = Opts.String.Get("-function");
-
-   data.r = r;
-   data.p = p;
-   data.q = q;
-   data.s = s;
-
    cl_device_type type = CL_INVALID_DEVICE_TYPE;
    if( Opts.String.Found("-type") )
    {
@@ -930,13 +920,7 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
       return 1;
    }
 
-   if ( build_function() )
-   {
-      fprintf(stderr,"Error in build the function string.\n");
-      return 1;
-   }
-
-   if ( build_kernel( Opts.Int.Get("-cl-mls") ) )
+   if ( build_kernel( Opts.Int.Get("-cl-mls"), Opts.String.Get("-function"), Opts.String.Get("-variant"), Opts.Float.Get("-cr"), Opts.Float.Get("-f"), r, p, q, s ) )
    {
       fprintf(stderr,"Error in build the kernel.\n");
       return 1;

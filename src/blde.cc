@@ -12,16 +12,20 @@
 #include "definitions.h"
 #include "util/CmdLineParser.h"
 #include "util/Util.h"
-//#ifdef _OPENMP
-//#include <omp.h>
-//#endif
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 //TODO: OpenMP
 //TODO: testar se eh PROFILE, etc...
 
 using namespace std;
 
-namespace { static struct t_data { int num_generation_leader; int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; int r; int p; int q; int s; bool verbose; } data; };
+namespace { static struct t_data { int num_generation_leader; int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; bool verbose;
+#ifdef PROFILING
+double time_init; double time_seed; double time_initialization; double time_follower; double time_leader;
+#endif
+} data; };
 
 void blde_init( int argc, char** argv ) 
 {
@@ -55,17 +59,18 @@ void blde_init( int argc, char** argv )
    data.leader_dimension = Opts.Int.Get("-dl");
    data.follower_dimension = Opts.Int.Get("-df");
 
-   data.r = floor( data.leader_dimension/2. );
-   data.p = data.leader_dimension - data.r;
+   int r = floor( data.leader_dimension/2. );
+   int p = data.leader_dimension - r;
+   int q; int s;
    if( Opts.String.Get("-function") == "1006" )
    {
-      data.q = floor( ( data.follower_dimension - data.r )/2. - EPS );
-      data.s = ceil(  ( data.follower_dimension - data.r )/2. + EPS );
+      q = floor( ( data.follower_dimension - r )/2. - EPS );
+      s = ceil(  ( data.follower_dimension - r )/2. + EPS );
    }
    else
    {
-      data.q = data.follower_dimension - data.r;
-      data.s = 0.;
+      q = data.follower_dimension - r;
+      s = 0.;
    }
 
    /*
@@ -76,14 +81,14 @@ void blde_init( int argc, char** argv )
       if '-t' is given as any value greater than 0, just set the number of threads to that value
       if '-t' is given as ZERO, than uses the maximum number of threads (= number of cores) or the value of the environment variable OMP_NUM_THREADS
    */
-//#ifdef _OPENMP
-//   if ( Opts.Int.Get("-t") < 0 ) // Uses the default (threads = 1 = sequencial)
-//      omp_set_num_threads(1);
-//   else if ( Opts.Int.Get("-t") > 0 ) // Uses the specified number of threads
-//      omp_set_num_threads(Opts.Int.Get("-t"));
-//#endif
+#ifdef _OPENMP
+   if ( Opts.Int.Get("-t") < 0 ) // Uses the default (threads = 1 = sequencial)
+      omp_set_num_threads(1);
+   else if ( Opts.Int.Get("-t") > 0 ) // Uses the specified number of threads
+      omp_set_num_threads(Opts.Int.Get("-t"));
+#endif
 
-   if( acc_follower_init( argc, argv, data.r, data.p, data.q, data.s ) )
+   if( acc_follower_init( argc, argv, r, p, q, s ) )
    {
       fprintf(stderr,"Error in initialization phase.\n");
    }
