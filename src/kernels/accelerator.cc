@@ -968,7 +968,11 @@ void acc_follower( int initialization )
 }
 
 // -----------------------------------------------------------------------------
-void acc_leader( real_t* fit_popL, real_t* fit_popLValoresF, int generation, real_t* popL, real_t* popLValoresF )
+void acc_leader( int generation
+#if ! defined( PROFILING )
+                 , real_t* fit_popL, real_t* fit_popLValoresF, real_t* popL, real_t* popLValoresF
+#endif
+               )
 {
    data.kernel_leader.setArg( 6, generation );
 
@@ -984,10 +988,12 @@ void acc_leader( real_t* fit_popL, real_t* fit_popLValoresF, int generation, rea
    // Wait until the kernel has finished
    data.queue.finish();
 
+#if ! defined( PROFILING )
    data.queue.enqueueReadBuffer( data.leader_buffer_fit_popL, CL_TRUE, 0, data.population_leader_size * sizeof( real_t ), fit_popL );
    data.queue.enqueueReadBuffer( data.leader_buffer_fit_popLValoresF, CL_TRUE, 0, data.population_leader_size * sizeof( real_t ), fit_popLValoresF );
    data.queue.enqueueReadBuffer( data.follower_buffer_popL, CL_TRUE, 0, data.population_leader_size * data.leader_dimension * sizeof( real_t ), popL );
    data.queue.enqueueReadBuffer( data.follower_buffer_popLValoresF, CL_TRUE, 0, data.population_leader_size * data.follower_dimension * sizeof( real_t ), popLValoresF );
+#endif
 }
 
 
