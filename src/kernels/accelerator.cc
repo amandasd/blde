@@ -693,13 +693,13 @@ string build_function( string function )
    else if( function == str(1007) )
       return function_str = header + function_getLower_level_1 + function_1002_e_1004_e_1007_getLower_level_2 + function_1002_e_1004_e_1007_getUpper_level_1 + function_1002_e_1004_e_1007_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1007_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1007_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1007_evaluate_level_2;
    else if( function == str(1008) )
-         return function_str = header + function_getLower_level_1 + function_1005_e_1006_e_1008_getLower_level_2 + function_getUpper_level_1 + function_1005_e_1006_e_1008_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1008_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1008_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1008_evaluate_level_2;
+      return function_str = header + function_getLower_level_1 + function_1005_e_1006_e_1008_getLower_level_2 + function_getUpper_level_1 + function_1005_e_1006_e_1008_getUpper_level_2 + function_evaluate_transpose_leader_level_1 + header_evaluate_transpose_leader + function_1008_evaluate_level_1 + function_evaluate_transpose_leader_level_2 + header_evaluate_transpose_leader + function_1008_evaluate_level_2 + function_evaluate_transpose_follower_level_2 + header_evaluate_transpose_follower + function_1008_evaluate_level_2;
    else
       fprintf(stderr, "Valid function: 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008.\n");
 }
 
 // -----------------------------------------------------------------------------
-int build_kernel( int maxlocalsize, string function, string variant, real_t crossover_rate, real_t f, int r, int p, int q, int s )
+int build_kernel( int localsize, int maxlocalsize, string function, string variant, real_t crossover_rate, real_t f, int r, int p, int q, int s )
 {
    /* Use a prefix (the given label) to minimize the likelihood of collisions
     * when two or more problems are built into the same build directory.
@@ -766,14 +766,29 @@ int build_kernel( int maxlocalsize, string function, string variant, real_t cros
       max_local_size = fmin( max_local_size, data.device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>() / 4 );
    }
 
-   if( data.population_follower_size < max_local_size )
+   if( localsize > data.population_follower_size )
    {
-      data.local_size = data.population_follower_size;
+      if( data.population_follower_size < max_local_size )
+      {
+         data.local_size = data.population_follower_size;  
+      }
+      else
+      {
+         data.local_size = max_local_size;
+      }
    }
    else
    {
-      data.local_size = max_local_size;
+      if( localsize < max_local_size )
+      {
+         data.local_size = localsize;
+      }
+      else
+      {
+         data.local_size = max_local_size;
+      }
    }
+
    // One leader individual per work-group
    data.global_size = data.population_leader_size * data.local_size;
    data.kernel_seed     = cl::Kernel( program, "seed" );
@@ -860,6 +875,7 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
    Opts.Int.Add( "-cl-p", "--cl-platform-id", -1, 0 );
    Opts.Int.Add( "-cl-d", "--cl-device-id", -1, 0 );
    Opts.Int.Add( "-cl-mls", "--cl-max-local-size", -1 );
+   Opts.Int.Add( "-cl-ls", "--cl-local-size", 128 );
    Opts.String.Add( "-type" );
 
    Opts.Int.Add( "-seed", "", 0, 0, std::numeric_limits<long>::max() );
@@ -920,7 +936,7 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
       return 1;
    }
 
-   if ( build_kernel( Opts.Int.Get("-cl-mls"), Opts.String.Get("-function"), Opts.String.Get("-variant"), Opts.Float.Get("-cr"), Opts.Float.Get("-f"), r, p, q, s ) )
+   if ( build_kernel( Opts.Int.Get("-cl-ls"), Opts.Int.Get("-cl-mls"), Opts.String.Get("-function"), Opts.String.Get("-variant"), Opts.Float.Get("-cr"), Opts.Float.Get("-f"), r, p, q, s ) )
    {
       fprintf(stderr,"Error in build the kernel.\n");
       return 1;
