@@ -766,28 +766,52 @@ int build_kernel( int localsize, int maxlocalsize, string function, string varia
       max_local_size = fmin( max_local_size, data.device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>() / 4 );
    }
 
-   if( localsize > data.population_follower_size )
+   if( localsize >= max_local_size )
    {
-      if( data.population_follower_size < max_local_size )
+      if( data.population_follower_size >= max_local_size )
+      {
+         data.local_size = max_local_size;
+      }
+      else
+      {
+         data.local_size = data.population_follower_size;  
+      }
+   }
+   else
+   {
+      if( localsize >= data.population_follower_size )
       {
          data.local_size = data.population_follower_size;  
       }
       else
       {
-         data.local_size = max_local_size;
-      }
-   }
-   else
-   {
-      if( localsize < max_local_size )
-      {
          data.local_size = localsize;
       }
-      else
-      {
-         data.local_size = max_local_size;
-      }
    }
+
+
+   //if( localsize > data.population_follower_size )
+   //{
+   //   if( data.population_follower_size < max_local_size )
+   //   {
+   //      data.local_size = data.population_follower_size;  
+   //   }
+   //   else
+   //   {
+   //      data.local_size = max_local_size;
+   //   }
+   //}
+   //else
+   //{
+   //   if( localsize < max_local_size )
+   //   {
+   //      data.local_size = localsize;
+   //   }
+   //   else
+   //   {
+   //      data.local_size = max_local_size;
+   //   }
+   //}
 
    // One leader individual per work-group
    data.global_size = data.population_leader_size * data.local_size;
@@ -796,7 +820,7 @@ int build_kernel( int localsize, int maxlocalsize, string function, string varia
    data.kernel_leader   = cl::Kernel( program, "leader" );
 
    if (data.verbose) {
-      std::cout << "\nDevice: " << data.device.getInfo<CL_DEVICE_NAME>() << ", Compute units: " << max_cu << ", Max local size: " << max_local_size << std::endl;
+      std::cout << "\nDevice: " << data.device.getInfo<CL_DEVICE_NAME>() << ", Compute units: " << max_cu << ", Max local size: " << max_local_size << ", Max work group size: " << data.device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>() << ", Max work item sizes: " << data.device.getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>()[0] << ", Local Mem size: " << data.device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>() << ", Max Mem global: " << data.device.getInfo<CL_DEVICE_MAX_MEM_ALLOC_SIZE>() << std::endl;
       std::cout << "Local size: " << data.local_size << ", Global size: " << data.global_size << ", Work groups: " << data.global_size/data.local_size << std::endl;
       std::cout << "Variant: " << variant << std::endl;
    }
@@ -985,9 +1009,9 @@ void acc_follower( int initialization )
 
 // -----------------------------------------------------------------------------
 void acc_leader( int generation
-#if ! defined( PROFILING )
+//#if ! defined( PROFILING )
                  , real_t* fit_popL, real_t* fit_popLValoresF, real_t* popL, real_t* popLValoresF
-#endif
+//#endif
                )
 {
    data.kernel_leader.setArg( 6, generation );
@@ -1004,12 +1028,12 @@ void acc_leader( int generation
    // Wait until the kernel has finished
    data.queue.finish();
 
-#if ! defined( PROFILING )
+//#if ! defined( PROFILING )
    data.queue.enqueueReadBuffer( data.leader_buffer_fit_popL, CL_TRUE, 0, data.population_leader_size * sizeof( real_t ), fit_popL );
    data.queue.enqueueReadBuffer( data.leader_buffer_fit_popLValoresF, CL_TRUE, 0, data.population_leader_size * sizeof( real_t ), fit_popLValoresF );
    data.queue.enqueueReadBuffer( data.follower_buffer_popL, CL_TRUE, 0, data.population_leader_size * data.leader_dimension * sizeof( real_t ), popL );
    data.queue.enqueueReadBuffer( data.follower_buffer_popLValoresF, CL_TRUE, 0, data.population_leader_size * data.follower_dimension * sizeof( real_t ), popLValoresF );
-#endif
+//#endif
 }
 
 

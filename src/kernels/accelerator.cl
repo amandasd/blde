@@ -24,6 +24,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
    // each group has #local_size work itens (lo_id)
    // local_size can be <= POPF_SIZE and local_size can be < DIML or DIMF.
 
+
    if( initialization )
    {
       // initialization of popL

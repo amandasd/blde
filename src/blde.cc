@@ -129,12 +129,12 @@ void blde_evolve()
    data.time_leader   = 0.0;
 #endif
 
-#if ! defined( PROFILING )
+//#if ! defined( PROFILING )
    real_t* popL = new real_t[data.population_leader_size * data.leader_dimension]; 
    real_t* popLValoresF = new real_t[data.population_leader_size * data.follower_dimension];
    real_t* fit_popL = new real_t[data.population_leader_size]; 
    real_t* fit_popLValoresF = new real_t[data.population_leader_size]; 
-#endif
+//#endif
 
 #ifdef PROFILING
    util::Timer t_seed;
@@ -156,11 +156,11 @@ void blde_evolve()
    data.time_initialization = t_initialization.elapsed();
 #endif
 
-   bool stop_fit = false; bool stop_stag = false;
+   bool stop_fit = false; bool stop_stag = false; bool stop_eps = false;
    int idx = 0; int g; int stagnation_tolerance = 0;
    int nEval_level_1 = data.population_leader_size; // acc_leader(g=0)
    int nEval_level_2 = ( 2*data.population_follower_size*data.population_leader_size ) + ( data.population_leader_size ); // ( acc_follower(1) ) + ( acc_leader(g=0) )
-	for( g = 0; ( g < data.num_generation_leader ); g++ )
+	for( g = 0; !stop_eps && ( g < data.num_generation_leader ); g++ )
 	//for( g = 0; ( g < data.num_generation_leader ) && ( nEval_level_1 + nEval_level_2 < nEval ) && !stop_fit && !stop_stag; g++ )
    {  
 #ifdef PROFILING
@@ -178,9 +178,9 @@ void blde_evolve()
 #endif
       // compare each new pair (uL, uF) with its respective old ones (popL, popLValoresF)
       acc_leader( g
-#if ! defined( PROFILING )
+//#if ! defined( PROFILING )
                   , fit_popL, fit_popLValoresF, popL, popLValoresF
-#endif
+//#endif
                 );
 #ifdef PROFILING
       data.time_leader += t_leader.elapsed();
@@ -191,7 +191,7 @@ void blde_evolve()
       nEval_level_1 += data.population_leader_size; // acc_leader
       nEval_level_2 += ( 2*data.population_follower_size*data.population_leader_size ) + ( data.population_leader_size ); // ( acc_follower ) + ( acc_leader )
 
-#if ! defined( PROFILING )
+//#if ! defined( PROFILING )
 		int idx_new = best_individual( idx, fit_popL, fit_popLValoresF );
 
       if( idx_new == idx ) stagnation_tolerance++;
@@ -205,7 +205,7 @@ void blde_evolve()
 
       if (data.verbose)
       {
-         printf( "\n[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag ); 
+         printf( "\n[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d :: %d", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag, stop_eps ); 
          cout << "\n[Leader] ";
          for( int j = 0; j < data.leader_dimension; j++ ){
             cout << popL[idx + j * data.population_leader_size] << " ";
@@ -216,23 +216,30 @@ void blde_evolve()
          }
          cout << endl;
       }
-#endif
+      double eps = 0.;
+      for( int j = 0; j < data.leader_dimension; j++ ){
+         eps += popL[idx + j * data.population_leader_size] * popL[idx + j * data.population_leader_size];
+      }
+      if (sqrt(eps) < 0.01) { stop_eps = true; }
+//#endif
 	}
    if (data.verbose) printf( "\n" ); 
 
 #ifdef PROFILING
-   printf("time_init: %lf, time_seed: %lf, time_initialization: %lf, time_follower: %lf, time_leader: %lf\n", data.time_init, data.time_seed, data.time_initialization, data.time_follower/g, data.time_leader/g);
+   printf("time_init: %lf, time_seed: %lf, time_initialization: %lf, time_follower: %lf, time_leader: %lf, gen: %d, stop_eps: %d\n", data.time_init, data.time_seed, data.time_initialization, data.time_follower/g, data.time_leader/g, g, stop_eps);
 #endif
 
-#if ! defined( PROFILING )
-	idx = best_individual( idx, fit_popL, fit_popLValoresF );
-   printf( "[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d\n", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag ); 
+//#if ! defined( PROFILING )
+   if (data.verbose){ 
+	   idx = best_individual( idx, fit_popL, fit_popLValoresF );
+      printf( "[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d :: %d\n", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag, stop_eps ); 
+   }
 
    delete[] popL;
    delete[] popLValoresF;
    delete[] fit_popL;
    delete[] fit_popLValoresF;
-#endif
+//#endif
 }
 
 
