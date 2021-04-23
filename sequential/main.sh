@@ -11,7 +11,7 @@ genF=("0" "50" "100" "200" "300" "500")
 func=("0" "1001" "1002" "1003" "1004" "1005" "1006" "1007" "1008")
 
 cd $seq
-g++ -o3 -o main blde.cpp funcoes.cpp
+g++ -O3 -o main blde.cpp funcoes.cpp
 
 #SEQUENTIAL
 for s in $(seq 1 1); do
