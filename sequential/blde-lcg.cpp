@@ -47,7 +47,6 @@ void seq_seed(int seed, unsigned int* seed_global)
 }
 
 unsigned int seed_global[1024];
-unsigned int seed;
 
 #define PENALTY 1
 
@@ -132,17 +131,17 @@ void imprimePopulacao(double **pop, int n, int d){
 void selecionaIndividuos(int &ind1, int &ind2, int &ind3, int i, int n){
 	do{
 		//ind1 = rand()%n;
-      ind1 = Int( &seed, n );
+      ind1 = Int( &seed_global[GL_ID], n );
 	} while(ind1 == i);
 
 	do{
 		//ind2 = rand()%n;
-      ind2 = Int( &seed, n );
+      ind2 = Int( &seed_global[GL_ID], n );
 	} while(ind2 == i || ind2 == ind1);
 
 	do{
 		//ind3 = rand()%n;
-      ind3 = Int( &seed, n );
+      ind3 = Int( &seed_global[GL_ID], n );
 	} while(ind3 == i || ind3 == ind1 || ind3 == ind2);
 }
 
@@ -201,10 +200,10 @@ void deFollower(double *uL, double *uF){
 			
 			double *u = new double[DIMF + 2];
 			//int jRand = rand()%DIMF;
-         int jRand = Int( &seed, DIMF );
+         int jRand = Int( &seed_global[GL_ID], DIMF );
 			for(int j = 0; j < DIMF; j++){
 				//if (j == jRand || rand()/(float)RAND_MAX < CR)
-            if( j == jRand || (Real( &seed ) < CR) )
+            if( j == jRand || (Real( &seed_global[GL_ID] ) < CR) )
             {
 					if (VAR == 1){
 						//--- DE/rand/1/bin
@@ -275,7 +274,7 @@ void inicializaFollower(double** &pop, double *leader, int n, int d){
 		pop[i] = new double[d + 2];
 		for(int j = 0; j < d; j++){
 			//pop[i][j] = getLower(2, FUNCAO, j) + (rand()/(double)RAND_MAX)*(getUpper(2, FUNCAO, j) - getLower(2, FUNCAO, j)); //UPPER - LOWER2
-			pop[i][j] = getLower(2, FUNCAO, j) + (Real( &seed ))*(getUpper(2, FUNCAO, j) - getLower(2, FUNCAO, j)); //UPPER - LOWER2
+			pop[i][j] = getLower(2, FUNCAO, j) + (Real( &seed_global[GL_ID] ))*(getUpper(2, FUNCAO, j) - getLower(2, FUNCAO, j)); //UPPER - LOWER2
 		}
 		calculaAptidao(pop[i], d, 2, leader, pop[i]);
 	}
@@ -289,7 +288,7 @@ void inicializa(double** &pop, int n, int d, int nivel){
       pop[i] = new double[d + 2];
       for(int j = 0; j < d; j++){
          //pop[i][j] = getLower(nivel, FUNCAO, j) + (rand()/(double)RAND_MAX)*(getUpper(nivel, FUNCAO, j) - getLower(nivel, FUNCAO, j)); //UPPER - LOWER
-         pop[i][j] = getLower(nivel, FUNCAO, j) + (Real( &seed ))*(getUpper(nivel, FUNCAO, j) - getLower(nivel, FUNCAO, j)); //UPPER - LOWER
+         pop[i][j] = getLower(nivel, FUNCAO, j) + (Real( &seed_global[GL_ID] ))*(getUpper(nivel, FUNCAO, j) - getLower(nivel, FUNCAO, j)); //UPPER - LOWER
       }
 
       if (nivel == 1){ // leader                                        
@@ -346,7 +345,6 @@ int main(int argc, char *argv[]){
 
 	//srand(SEED);    
    seq_seed(SEED, seed_global);
-   seed = seed_global[GL_ID];
 
    // Apenas para funcoes SMDs
    if ( FUNCAO > 1000 ){           
@@ -387,10 +385,10 @@ int main(int argc, char *argv[]){
 	   	
 	   	double *u = new double[DIML + 2];
 	   	//int jRand = rand()%DIML;
-         int jRand = Int( &seed, DIML );
+         int jRand = Int( &seed_global[GL_ID], DIML );
 	   	for(int j = 0; j < DIML; j++){
 	   		//if (j == jRand || rand()/(float)RAND_MAX < CR)
-            if( j == jRand || (Real( &seed ) < CR) )
+            if( j == jRand || (Real( &seed_global[GL_ID] ) < CR) )
             {	
                if(VAR == 1){
 	   				//DE/rand/1/bin
