@@ -40,7 +40,7 @@ unsigned int Int( unsigned int * seed, unsigned int n )
    return *seed % n;
 }
 
-#define GL_ID 100
+#define GL_ID 0
 void seq_seed(int seed, unsigned int* seed_global)
 {
    seed_global[GL_ID] = lcg( seed + GL_ID + 1 ); // Make each work-item random stream have a different seed
