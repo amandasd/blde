@@ -110,16 +110,18 @@ int best_individual(int idx, real_t* fit_popL, real_t* fit_popLValoresF)
       // The functions 1001, 1002, ..., 1008 are all minimization functions.
       // They do not have any restriction. 
       // Option #1
-      //if( (fit_popL[i] <= fit_popL[idx]) && (fit_popLValoresF[i] <= fit_popLValoresF[idx]) ) { idx = i; }
+      //if( (fit_popL[i] > 0.) && (fit_popLValoresF[i] > 0.) ) {
+         if( (fit_popL[i] <= fit_popL[idx]) && (fit_popLValoresF[i] <= fit_popLValoresF[idx]) ) { idx = i; }
+      //}
       // Option #2
-      if( (fit_popL[i] <= fit_popL[idx_level_1]) ) { idx_level_1 = i; }
-      if( (fit_popLValoresF[i] <= fit_popLValoresF[idx_level_2]) ) { idx_level_2 = i; }
+      //if( (fit_popL[i] <= fit_popL[idx_level_1]) ) { idx_level_1 = i; }
+      //if( (fit_popLValoresF[i] <= fit_popLValoresF[idx_level_2]) ) { idx_level_2 = i; }
    }
    // Option #1
-   //return idx;
+   return idx;
    // Option #2
-   if( (fit_popL[idx_level_2] <= fit_popLValoresF[idx_level_1]) ) { return idx_level_2; }
-   else { return idx_level_1; }
+   //if( (fit_popL[idx_level_2] <= fit_popLValoresF[idx_level_1]) ) { return idx_level_2; }
+   //else { return idx_level_1; }
 }
 
 void blde_evolve()
@@ -192,6 +194,7 @@ void blde_evolve()
       nEval_level_2 += ( 2*data.population_follower_size*data.population_leader_size ) + ( data.population_leader_size ); // ( acc_follower ) + ( acc_leader )
 
 //#if ! defined( PROFILING )
+      printf( "\n[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d :: %d", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag, stop_eps ); 
 		int idx_new = best_individual( idx, fit_popL, fit_popLValoresF );
 
       if( idx_new == idx ) stagnation_tolerance++;

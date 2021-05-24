@@ -410,7 +410,7 @@ string build_function( string function )
    "   {\n"
    "      F2 += (y[i]*y[i]);\n"
    "   }\n"
-   "   F2 = F2*(-1);\n"
+   "   F2 = F2*(-1.);\n"
    "   real_t sum1 = 0.0, sum2 = 0.0;\n"
    "   for(int i = 0; i < r; i++)\n"
    "   {\n"
@@ -481,7 +481,7 @@ string build_function( string function )
    "   {\n"
    "      F2 += (y[i]*y[i]);\n"
    "   }\n"
-   "   F2 = F2*(-1);\n"
+   "   F2 = F2*(-1.);\n"
    "   real_t sum1 = 0.0, sum2 = 0.0;\n"
    "   for(int i = 0; i < r; i++)\n"
    "   {\n"
@@ -519,7 +519,7 @@ string build_function( string function )
    "      F2 += (y[i+1]-(y[i]*y[i]))*(y[i+1]-(y[i]*y[i]))+((y[i]-1.)*(y[i]-1.));\n"
    "      //F2 += (y[i+1]-(y[i]*y[i]))+((y[i]-1.)*(y[i]-1.));\n"
    "   }\n"
-   "   F2 = F2*(-1);\n"
+   "   F2 = F2*(-1.);\n"
    "   real_t sum1 = 0.0, sum2 = 0.0;\n"
    "   for(int i = 0; i < r; i++)\n"
    "   {\n"
@@ -607,7 +607,7 @@ string build_function( string function )
    "      prod *= (cos(x[i]/sqrt((real_t)(i+1))));\n"
    "   }\n"
    "   F1 = 1. + ((1/400.)*sum1)-prod;\n"
-   "   F2 = F2*(-1);\n"
+   "   F2 = F2*(-1.);\n"
    "   sum1 = 0.0; \n"
    "   int j = p, w = q;\n"
    "   for(int i = 0; i < r; i++)\n"
@@ -648,7 +648,7 @@ string build_function( string function )
    "   {\n"
    "      F2 += ((y[i+1]-(y[i]*y[i]))*(y[i+1]-(y[i]*y[i]))+((y[i]-1)*(y[i]-1)));\n"
    "   }\n"
-   "   F2 = F2*(-1);\n"
+   "   F2 = F2*(-1.);\n"
    "   sum1 = 0.0; sum2 = 0.0;\n"
    "   for(int i = 0; i < r; i++)\n"
    "   {\n"
@@ -835,28 +835,28 @@ void create_buffers( int seed )
    data.seed_buffer = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.global_size * sizeof( uint ) );
 
    data.follower_buffer_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE
-#if ! defined( PROFILING )
+//#if ! defined( PROFILING )
          | CL_MEM_ALLOC_HOST_PTR
-#endif
+//#endif
          , data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
    data.follower_buffer_popLValoresF = cl::Buffer( data.context, CL_MEM_READ_WRITE
-#if ! defined( PROFILING )
+//#if ! defined( PROFILING )
          | CL_MEM_ALLOC_HOST_PTR
-#endif
+//#endif
          , data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
    data.follower_buffer_popF = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_follower_size * data.follower_dimension * data.population_leader_size * sizeof( real_t ) );
    data.follower_buffer_vf = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
    data.follower_buffer_vl = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
 
    data.leader_buffer_fit_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE
-#if ! defined( PROFILING )
+//#if ! defined( PROFILING )
          | CL_MEM_ALLOC_HOST_PTR
-#endif
+//#endif
          , data.population_leader_size * sizeof( real_t ) );
    data.leader_buffer_fit_popLValoresF = cl::Buffer( data.context, CL_MEM_WRITE_ONLY
-#if ! defined( PROFILING )
+//#if ! defined( PROFILING )
          | CL_MEM_ALLOC_HOST_PTR
-#endif
+//#endif
          , data.population_leader_size * sizeof( real_t ) );
 
    data.kernel_seed.setArg( 0, seed );

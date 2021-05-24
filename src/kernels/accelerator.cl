@@ -260,7 +260,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             if( (n < k) && (n + k < POPF_SIZE) )
             {
                // The functions 1001, 1002, ..., 1008 are all minimization functions.
-               //if( fit_popF[n + k] < fit_popF[n] ){
+               //if( fit_popF[n + k] < fit_popF[n] )
                if( fit_popF[best_idx[n + k]] <= fit_popF[best_idx[n]] )
                {
                   best_idx[n] = best_idx[n + k];
@@ -324,7 +324,8 @@ leader( __global real_t* popL, __global real_t* popLValoresF, __global real_t* V
       fit_popLValoresF[gl_id] = evaluate_transpose_leader_level_2( gl_id, popL, popLValoresF );
    }
 
-	if( fit_VL <= fit_popL[gl_id] && fit_VF <= fit_popLValoresF[gl_id])
+	if( fit_VL <= fit_popL[gl_id] && fit_VF <= fit_popLValoresF[gl_id] )
+	//if( fit_VL <= fit_popL[gl_id] && fit_VF <= fit_popLValoresF[gl_id] && fit_VL > 0. && fit_VF > 0. )
    {
       for( int j = 0; j < DIML; j++ )
       {
