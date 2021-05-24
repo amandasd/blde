@@ -185,10 +185,10 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
                   //TODO
 #if defined(VARIANT_rand) //DE/rand/1/bin
                   //lo_popF[n + i * POPF_SIZE] = lo_popF[idx1 + i * POPF_SIZE] + F*(lo_popF[idx2 + i * POPF_SIZE] - lo_popF[idx3 + i * POPF_SIZE]);
-                  lo_popF[n + i * POPF_SIZE] = gl_popF[idx1 * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] + F*(gl_popF[idx2 * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] - gl_popF[idx3 * (POPF_SIZE * DIMF) + n + i * POPF_SIZE]);
+                  lo_popF[n + i * POPF_SIZE] = gl_popF[gr_id * (POPF_SIZE * DIMF) + idx1 + i * POPF_SIZE] + F*(gl_popF[gr_id * (POPF_SIZE * DIMF) + idx2 + i * POPF_SIZE] - gl_popF[gr_id * (POPF_SIZE * DIMF) + idx3 + i * POPF_SIZE]);
 #elif defined(VARIANT_target_to_rand) //DE/target-to-rand/1/bin
                   //lo_popF[n + i * POPF_SIZE] = lo_popF[n + i * POPF_SIZE] + F*(lo_popF[idx1 + i * POPF_SIZE] - lo_popF[n + i * POPF_SIZE]) + F*(lo_popF[idx2 + i * POPF_SIZE] - lo_popF[idx3 + i * POPF_SIZE]);
-                  lo_popF[n + i * POPF_SIZE] = gl_popF[gr_id * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] + F*(gl_popF[idx1 * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] - gl_popF[gr_id * (POPF_SIZE * DIMF) + n + i * POPF_SIZE]) + F*(gl_popF[idx2 * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] - gl_popF[idx3 * (POPF_SIZE * DIMF) + n + i * POPF_SIZE]);
+                  lo_popF[n + i * POPF_SIZE] = gl_popF[gr_id * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] + F*(gl_popF[gr_id * (POPF_SIZE * DIMF) + idx1 + i * POPF_SIZE] - gl_popF[gr_id * (POPF_SIZE * DIMF) + n + i * POPF_SIZE]) + F*(gl_popF[gr_id * (POPF_SIZE * DIMF) + idx2 + i * POPF_SIZE] - gl_popF[gr_id * (POPF_SIZE * DIMF) + idx3 + i * POPF_SIZE]);
 #else
    "Variant not supported"
 #endif
