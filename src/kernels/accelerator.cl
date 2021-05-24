@@ -73,12 +73,12 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
       // popL -> POPL_SIZE * DIML
       // idx -> solution S (S0, S1, S2, ...)
       // lo_id -> dimension D (D0, D1, D2, ...)
+      int jRand = Int( &seed, DIML );
       for( int j = 0; j < (int) ceil(DIML/(real_t)lo_size); ++j )
       {
          n = j * lo_size + lo_id;
          if( n < DIML )
          { 
-            int jRand = Int( &seed, DIML );
             if( n == jRand || (Real( &seed ) < CR) )
             {	
 #if defined(VARIANT_rand) //DE/rand/1/bin
@@ -177,6 +177,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             // popF -> POPF_SIZE * DIMF
             // idx1 -> solution S (S0, S1, S2, ...)
             // lo_id -> follower uF
+
             int jRand = Int( &seed, DIMF );
             for( int i = 0; i < DIMF; i++ )
             {
