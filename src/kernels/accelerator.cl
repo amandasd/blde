@@ -138,20 +138,20 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
    // And because each lo_id will access diferent positions of lo_popF.
    barrier(CLK_LOCAL_MEM_FENCE);
 
-   for( int j = 0; j < (int) ceil(POPF_SIZE/(real_t)lo_size); ++j )
+   for( int g = 0; g < GENF_NUM; g++ )
    {
-      n = j * lo_size + lo_id;
-      if( n < POPF_SIZE )
+      for( int j = 0; j < (int) ceil(POPF_SIZE/(real_t)lo_size); ++j )
       {
-         // follower population evaluation -> popF
-         // start
-         // fit_popF -> size of POPF_SIZE
-         fit_popF[n] = evaluate_transpose_follower_level_2(n, uL, lo_popF);
-         // follower population evaluation -> popF
-         // end
-
-         for( int g = 0; g < GENF_NUM; g++ )
+         n = j * lo_size + lo_id;
+         if( n < POPF_SIZE )
          {
+            // follower population evaluation -> popF
+            // start
+            // fit_popF -> size of POPF_SIZE
+            fit_popF[n] = evaluate_transpose_follower_level_2(n, uL, lo_popF);
+            // follower population evaluation -> popF
+            // end
+
             // follower generation -> uF is represented by lo_id (here n)
             // lo_id (here n) is a follower uF
             // start
@@ -182,7 +182,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             for( int i = 0; i < DIMF; i++ )
             {
                if( (i == jRand) || (Real( &seed ) < CR) )
-               {	
+               {
                   //TODO
 #if defined(VARIANT_rand) //DE/rand/1/bin
                   //lo_popF[n + i * POPF_SIZE] = lo_popF[idx1 + i * POPF_SIZE] + F*(lo_popF[idx2 + i * POPF_SIZE] - lo_popF[idx3 + i * POPF_SIZE]);
@@ -191,13 +191,13 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
                   //lo_popF[n + i * POPF_SIZE] = lo_popF[n + i * POPF_SIZE] + F*(lo_popF[idx1 + i * POPF_SIZE] - lo_popF[n + i * POPF_SIZE]) + F*(lo_popF[idx2 + i * POPF_SIZE] - lo_popF[idx3 + i * POPF_SIZE]);
                   lo_popF[n + i * POPF_SIZE] = gl_popF[gr_id * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] + F*(gl_popF[gr_id * (POPF_SIZE * DIMF) + idx1 + i * POPF_SIZE] - gl_popF[gr_id * (POPF_SIZE * DIMF) + n + i * POPF_SIZE]) + F*(gl_popF[gr_id * (POPF_SIZE * DIMF) + idx2 + i * POPF_SIZE] - gl_popF[gr_id * (POPF_SIZE * DIMF) + idx3 + i * POPF_SIZE]);
 #else
-   "Variant not supported"
+                  "Variant not supported"
 #endif
                   if( lo_popF[n + i * POPF_SIZE] < getLower_level_2( i ) )
                   {
                      lo_popF[n + i * POPF_SIZE] = getLower_level_2( i );
                   }
-                  else 
+                  else
                   {
                      if( lo_popF[n + i * POPF_SIZE] > getUpper_level_2( i ) ) 
                      {
@@ -208,7 +208,14 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             }
             // follower generation -> uF
             // end
+         }
+      }
 
+      for( int j = 0; j < (int) ceil(POPF_SIZE/(real_t)lo_size); ++j )
+      {
+         n = j * lo_size + lo_id;
+         if( n < POPF_SIZE )
+         {
             // follower evaluation -> uF
             // start
             real_t fit_popF_new;
@@ -238,10 +245,11 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             // new generation
             // end
 
-            seed_global[gl_id] = seed;
+            // initialization of best_idx
+            best_idx[n] = n;
          }
-         best_idx[n] = n;
       }
+      seed_global[gl_id] = seed;
    }
 
    // reduction: best individual for each uL or group gr_id
