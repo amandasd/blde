@@ -135,7 +135,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
    }
 
    // Wait for all work itens because just some of them (lo_id < DIML) are responsible for the leader generation (uL).
-   // And because each lo_id will access diferent positions of lo_popF.
+   // And because each lo_id will accesses diferent positions of lo_popF.
    barrier(CLK_LOCAL_MEM_FENCE);
 
    for( int g = 0; g < GENF_NUM; g++ )
@@ -211,6 +211,10 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          }
       }
 
+      // each lo_id accesses diferent positions of gl_popF in the previous loop
+      // and updates gl_popF in the loop below.
+      barrier(CLK_LOCAL_MEM_FENCE);
+
       for( int j = 0; j < (int) ceil(POPF_SIZE/(real_t)lo_size); ++j )
       {
          n = j * lo_size + lo_id;
@@ -249,6 +253,11 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             best_idx[n] = n;
          }
       }
+
+      // each lo_id updates gl_popF in the previous loop
+      // and will accesses diferent positions of gl_popF in the next generation.
+      barrier(CLK_LOCAL_MEM_FENCE);
+
       seed_global[gl_id] = seed;
    }
 
