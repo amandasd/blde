@@ -131,6 +131,13 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          }
          // follower population generation -> popF
          // end
+
+         // follower population evaluation -> popF
+         // start
+         // fit_popF -> size of POPF_SIZE
+         fit_popF[n] = evaluate_transpose_follower_level_2(n, uL, lo_popF);
+         // follower population evaluation -> popF
+         // end
       }
    }
 
@@ -145,13 +152,6 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          n = j * lo_size + lo_id;
          if( n < POPF_SIZE )
          {
-            // follower population evaluation -> popF
-            // start
-            // fit_popF -> size of POPF_SIZE
-            fit_popF[n] = evaluate_transpose_follower_level_2(n, uL, lo_popF);
-            // follower population evaluation -> popF
-            // end
-
             // follower generation -> uF is represented by lo_id (here n)
             // lo_id (here n) is a follower uF
             // start
@@ -208,18 +208,19 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             }
             // follower generation -> uF
             // end
-         }
-      }
+         //}
+      //}
 
       // each lo_id accesses diferent positions of gl_popF in the previous loop
       // and updates gl_popF in the loop below.
-      barrier(CLK_LOCAL_MEM_FENCE);
+      // we can remove this barrier and eventually provide a kind of random mutation
+      //barrier(CLK_LOCAL_MEM_FENCE);
 
-      for( int j = 0; j < (int) ceil(POPF_SIZE/(real_t)lo_size); ++j )
-      {
-         n = j * lo_size + lo_id;
-         if( n < POPF_SIZE )
-         {
+      //for( int j = 0; j < (int) ceil(POPF_SIZE/(real_t)lo_size); ++j )
+      //{
+      //   n = j * lo_size + lo_id;
+      //   if( n < POPF_SIZE )
+      //   {
             // follower evaluation -> uF
             // start
             real_t fit_popF_new;
@@ -256,7 +257,8 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
 
       // each lo_id updates gl_popF in the previous loop
       // and will accesses diferent positions of gl_popF in the next generation.
-      barrier(CLK_LOCAL_MEM_FENCE);
+      // we can remove this barrier and eventually provide a kind of random mutation
+      //barrier(CLK_LOCAL_MEM_FENCE);
 
       seed_global[gl_id] = seed;
    }
@@ -342,6 +344,7 @@ leader( __global real_t* popL, __global real_t* popLValoresF, __global real_t* V
       fit_popLValoresF[gl_id] = evaluate_transpose_leader_level_2( gl_id, popL, popLValoresF );
    }
 
+	//if( fit_VL <= fit_popL[gl_id] )
 	if( fit_VL <= fit_popL[gl_id] && fit_VF <= fit_popLValoresF[gl_id] )
 	//if( fit_VL <= fit_popL[gl_id] && fit_VF <= fit_popLValoresF[gl_id] && fit_VL > 0. && fit_VF > 0. )
    {
