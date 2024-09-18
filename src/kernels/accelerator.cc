@@ -39,7 +39,7 @@ std::string getAbsoluteDirectory(std::string filepath)
 /** ***************************** TYPES ****************************** **/
 /** ****************************************************************** **/
 
-namespace { static struct t_data { int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; int num_generation_follower; unsigned local_size; unsigned global_size; cl::Device device; cl::Context context; cl::Kernel kernel_seed; cl::Kernel kernel_follower; cl::Kernel kernel_leader; cl::CommandQueue queue; cl::Buffer seed_buffer; cl::Buffer follower_buffer_popL; cl::Buffer follower_buffer_popLValoresF; cl::Buffer follower_buffer_popF; cl::Buffer follower_buffer_vf; cl::Buffer follower_buffer_vl; cl::Buffer leader_buffer_fit_popL; cl::Buffer leader_buffer_fit_popLValoresF; std::string executable_directory; bool verbose; } data; };
+namespace { static struct t_data { int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; int num_generation_follower; unsigned local_size; unsigned global_size; cl::Device device; cl::Context context; cl::Kernel kernel_seed; cl::Kernel kernel_follower; cl::Kernel kernel_leader; cl::CommandQueue queue; cl::Buffer seed_buffer; cl::Buffer follower_buffer_popL; cl::Buffer follower_buffer_popLValoresF; cl::Buffer follower_buffer_popF; cl::Buffer follower_buffer_vf; cl::Buffer follower_buffer_vl; cl::Buffer leader_buffer_fit_popL; cl::Buffer leader_buffer_fit_popLValoresF; std::string executable_directory; bool verbose; } sdata; };
 
 /** ****************************************************************** **/
 /** *********************** AUXILIARY FUNCTION *********************** **/
@@ -107,7 +107,7 @@ int opencl_init( int platform_id, int device_id, cl_device_type type )
       }
 
       int first_device = device_id >= 0 ? device_id : 0;
-      data.device = devices[first_device];
+      sdata.device = devices[first_device];
 
       if( type != CL_INVALID_DEVICE_TYPE && device_id < 0 ) // options 4 e 5
       {
@@ -155,7 +155,7 @@ int opencl_init( int platform_id, int device_id, cl_device_type type )
             if ( devices[n].getInfo<CL_DEVICE_TYPE>() & type ) 
             {
                leave = true;
-               data.device = devices[n];
+               sdata.device = devices[n];
                break;
             }
          }
@@ -169,9 +169,9 @@ int opencl_init( int platform_id, int device_id, cl_device_type type )
       return 1;
    }
 
-   data.context = cl::Context( devices );
+   sdata.context = cl::Context( devices );
 
-   data.queue = cl::CommandQueue( data.context, data.device);
+   sdata.queue = cl::CommandQueue( sdata.context, sdata.device);
 
    return 0;
 }
@@ -595,7 +595,7 @@ string build_function( string function )
    "   return F1+F2+F3;\n"
    "}\n\n";
 
-   string function_1007_evaluate_level_1 = 
+   string function_1007_evaluate_level_1 =
    "   for(int i = 0; i < q; i++)\n"
    "   {\n"
    "      F2 += (y[i]*y[i]);\n"
@@ -620,7 +620,7 @@ string build_function( string function )
    "   return F1+F2+F3;\n"
    "}\n\n";
 
-   string function_1007_evaluate_level_2 = 
+   string function_1007_evaluate_level_2 =
    "   for(int i = 0; i < q; i++)\n"
    "   {\n"
    "      F2 += (y[i]*y[i]);\n"
@@ -706,7 +706,7 @@ int build_kernel( int localsize, int maxlocalsize, string function, string varia
       The directory of the executable binary is prefixed here so that OpenCL
       will find the kernels regardless of user's current directory. */
 
-   std::string opencl_file = data.executable_directory + std::string("accelerator.cl");
+   std::string opencl_file = sdata.executable_directory + std::string("accelerator.cl");
    ifstream file(opencl_file.c_str());
    string kernel_str( istreambuf_iterator<char>(file), ( istreambuf_iterator<char>()) );
 
@@ -714,9 +714,9 @@ int build_kernel( int localsize, int maxlocalsize, string function, string varia
 
    string program_str;
    program_str = 
-      "#define POPL_SIZE " + util::ToString( data.population_leader_size ) + "\n#define POPF_SIZE " + util::ToString( data.population_follower_size ) + "\n" +
-      "#define DIML " + util::ToString( data.leader_dimension ) + "\n#define DIMF " + util::ToString( data.follower_dimension ) + "\n" +
-      "#define GENF_NUM " + util::ToString( data.num_generation_follower ) + "\n#define CR " + util::ToString( crossover_rate ) + "\n" + 
+      "#define POPL_SIZE " + util::ToString( sdata.population_leader_size ) + "\n#define POPF_SIZE " + util::ToString( sdata.population_follower_size ) + "\n" +
+      "#define DIML " + util::ToString( sdata.leader_dimension ) + "\n#define DIMF " + util::ToString( sdata.follower_dimension ) + "\n" +
+      "#define GENF_NUM " + util::ToString( sdata.num_generation_follower ) + "\n#define CR " + util::ToString( crossover_rate ) + "\n" + 
       "#define F " + util::ToString( f ) + "\n#define r " + util::ToString( r ) + "\n" + 
       "#define p " + util::ToString( p ) + "\n#define q " + util::ToString( q ) + "\n#define s " + util::ToString( s ) + "\n" + 
       function_str + kernel_str;
@@ -724,16 +724,16 @@ int build_kernel( int localsize, int maxlocalsize, string function, string varia
 
    cl::Program::Sources source( 1, make_pair( program_str.c_str(), program_str.size() ) );
    
-   cl::Program program( data.context, source );
+   cl::Program program( sdata.context, source );
 
-   vector<cl::Device> device; device.push_back( data.device );
+   vector<cl::Device> device; device.push_back( sdata.device );
    try 
    {
       /* Pass the following definition to the OpenCL compiler:
             -I<executable_absolute_directory>/follower where
             <executable_absolute_directory> is the current directory of the
             executable binary. */
-      std::string flags = std::string( " -I" + data.executable_directory + std::string("/kernels") 
+      std::string flags = std::string( " -I" + sdata.executable_directory + std::string("/kernels") 
 #ifdef CONFIG_USE_DOUBLE
       + " -DCONFIG_USE_DOUBLE " 
 #endif
@@ -744,12 +744,12 @@ int build_kernel( int localsize, int maxlocalsize, string function, string varia
    {
       if( e.err() == CL_BUILD_PROGRAM_FAILURE )
       {
-         cerr << "Build Log:\t " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( data.device ) << std::endl;
+         cerr << "Build Log:\t " << program.getBuildInfo<CL_PROGRAM_BUILD_LOG>( sdata.device ) << std::endl;
       }
       throw;
    }
 
-   unsigned max_cu = data.device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
+   unsigned max_cu = sdata.device.getInfo<CL_DEVICE_MAX_COMPUTE_UNITS>();
    unsigned max_local_size;
    if( maxlocalsize > 0 )
    {
@@ -757,71 +757,71 @@ int build_kernel( int localsize, int maxlocalsize, string function, string varia
    }
    else 
    {
-      max_local_size = fmin( data.device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>(), data.device.getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>()[0] );
+      max_local_size = fmin( sdata.device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>(), sdata.device.getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>()[0] );
    
       //It is necessary to respect the local memory size. Depending on the
       //maximum local size, there will not be enough space to allocate the
       //local variables.  The local size depends on the maximum local size. 
       //The division by 4: 1 local vector in the DP and PDP kernels (both are float vectors, so the division by 4 bytes)
-      max_local_size = fmin( max_local_size, data.device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>() / 4 );
+      max_local_size = fmin( max_local_size, sdata.device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>() / 4 );
    }
 
    if( localsize >= max_local_size )
    {
-      if( data.population_follower_size >= max_local_size )
+      if( sdata.population_follower_size >= max_local_size )
       {
-         data.local_size = max_local_size;
+         sdata.local_size = max_local_size;
       }
       else
       {
-         data.local_size = data.population_follower_size;  
+         sdata.local_size = sdata.population_follower_size;  
       }
    }
    else
    {
-      if( localsize >= data.population_follower_size )
+      if( localsize >= sdata.population_follower_size )
       {
-         data.local_size = data.population_follower_size;  
+         sdata.local_size = sdata.population_follower_size;  
       }
       else
       {
-         data.local_size = localsize;
+         sdata.local_size = localsize;
       }
    }
 
 
-   //if( localsize > data.population_follower_size )
+   //if( localsize > sdata.population_follower_size )
    //{
-   //   if( data.population_follower_size < max_local_size )
+   //   if( sdata.population_follower_size < max_local_size )
    //   {
-   //      data.local_size = data.population_follower_size;  
+   //      sdata.local_size = sdata.population_follower_size;  
    //   }
    //   else
    //   {
-   //      data.local_size = max_local_size;
+   //      sdata.local_size = max_local_size;
    //   }
    //}
    //else
    //{
    //   if( localsize < max_local_size )
    //   {
-   //      data.local_size = localsize;
+   //      sdata.local_size = localsize;
    //   }
    //   else
    //   {
-   //      data.local_size = max_local_size;
+   //      sdata.local_size = max_local_size;
    //   }
    //}
 
    // One leader individual per work-group
-   data.global_size = data.population_leader_size * data.local_size;
-   data.kernel_seed     = cl::Kernel( program, "seed" );
-   data.kernel_follower = cl::Kernel( program, "follower" );
-   data.kernel_leader   = cl::Kernel( program, "leader" );
+   sdata.global_size = sdata.population_leader_size * sdata.local_size;
+   sdata.kernel_seed     = cl::Kernel( program, "seed" );
+   sdata.kernel_follower = cl::Kernel( program, "follower" );
+   sdata.kernel_leader   = cl::Kernel( program, "leader" );
 
-   if (data.verbose) {
-      std::cout << "\nDevice: " << data.device.getInfo<CL_DEVICE_NAME>() << ", Compute units: " << max_cu << ", Max local size: " << max_local_size << ", Max work group size: " << data.device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>() << ", Max work item sizes: " << data.device.getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>()[0] << ", Local Mem size: " << data.device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>() << ", Max Mem global: " << data.device.getInfo<CL_DEVICE_MAX_MEM_ALLOC_SIZE>() << std::endl;
-      std::cout << "Local size: " << data.local_size << ", Global size: " << data.global_size << ", Work groups: " << data.global_size/data.local_size << std::endl;
+   if (sdata.verbose) {
+      std::cout << "\nDevice: " << sdata.device.getInfo<CL_DEVICE_NAME>() << ", Compute units: " << max_cu << ", Max local size: " << max_local_size << ", Max work group size: " << sdata.device.getInfo<CL_DEVICE_MAX_WORK_GROUP_SIZE>() << ", Max work item sizes: " << sdata.device.getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>()[0] << ", Local Mem size: " << sdata.device.getInfo<CL_DEVICE_LOCAL_MEM_SIZE>() << ", Max Mem global: " << sdata.device.getInfo<CL_DEVICE_MAX_MEM_ALLOC_SIZE>() << std::endl;
+      std::cout << "Local size: " << sdata.local_size << ", Global size: " << sdata.global_size << ", Work groups: " << sdata.global_size/sdata.local_size << std::endl;
       std::cout << "Variant: " << variant << std::endl;
    }
 
@@ -832,53 +832,53 @@ int build_kernel( int localsize, int maxlocalsize, string function, string varia
 void create_buffers( int seed )
 {
    // Buffer (memory on the device) of the programs
-   data.seed_buffer = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.global_size * sizeof( uint ) );
+   sdata.seed_buffer = cl::Buffer( sdata.context, CL_MEM_READ_WRITE, sdata.global_size * sizeof( uint ) );
 
-   data.follower_buffer_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE
+   sdata.follower_buffer_popL = cl::Buffer( sdata.context, CL_MEM_READ_WRITE
 //#if ! defined( PROFILING )
          | CL_MEM_ALLOC_HOST_PTR
 //#endif
-         , data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
-   data.follower_buffer_popLValoresF = cl::Buffer( data.context, CL_MEM_READ_WRITE
+         , sdata.population_leader_size * sdata.leader_dimension * sizeof( real_t ) );
+   sdata.follower_buffer_popLValoresF = cl::Buffer( sdata.context, CL_MEM_READ_WRITE
 //#if ! defined( PROFILING )
          | CL_MEM_ALLOC_HOST_PTR
 //#endif
-         , data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
-   data.follower_buffer_popF = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_follower_size * data.follower_dimension * data.population_leader_size * sizeof( real_t ) );
-   data.follower_buffer_vf = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_leader_size * data.follower_dimension * sizeof( real_t ) );
-   data.follower_buffer_vl = cl::Buffer( data.context, CL_MEM_READ_WRITE, data.population_leader_size * data.leader_dimension * sizeof( real_t ) );
+         , sdata.population_leader_size * sdata.follower_dimension * sizeof( real_t ) );
+   sdata.follower_buffer_popF = cl::Buffer( sdata.context, CL_MEM_READ_WRITE, sdata.population_follower_size * sdata.follower_dimension * sdata.population_leader_size * sizeof( real_t ) );
+   sdata.follower_buffer_vf = cl::Buffer( sdata.context, CL_MEM_READ_WRITE, sdata.population_leader_size * sdata.follower_dimension * sizeof( real_t ) );
+   sdata.follower_buffer_vl = cl::Buffer( sdata.context, CL_MEM_READ_WRITE, sdata.population_leader_size * sdata.leader_dimension * sizeof( real_t ) );
 
-   data.leader_buffer_fit_popL = cl::Buffer( data.context, CL_MEM_READ_WRITE
+   sdata.leader_buffer_fit_popL = cl::Buffer( sdata.context, CL_MEM_READ_WRITE
 //#if ! defined( PROFILING )
          | CL_MEM_ALLOC_HOST_PTR
 //#endif
-         , data.population_leader_size * sizeof( real_t ) );
-   data.leader_buffer_fit_popLValoresF = cl::Buffer( data.context, CL_MEM_WRITE_ONLY
+         , sdata.population_leader_size * sizeof( real_t ) );
+   sdata.leader_buffer_fit_popLValoresF = cl::Buffer( sdata.context, CL_MEM_WRITE_ONLY
 //#if ! defined( PROFILING )
          | CL_MEM_ALLOC_HOST_PTR
 //#endif
-         , data.population_leader_size * sizeof( real_t ) );
+         , sdata.population_leader_size * sizeof( real_t ) );
 
-   data.kernel_seed.setArg( 0, seed );
-   data.kernel_seed.setArg( 1, data.seed_buffer );
+   sdata.kernel_seed.setArg( 0, seed );
+   sdata.kernel_seed.setArg( 1, sdata.seed_buffer );
 
-   data.kernel_follower.setArg( 0, data.follower_buffer_popL );
-   data.kernel_follower.setArg( 1, data.follower_buffer_popLValoresF );
-   data.kernel_follower.setArg( 2, data.follower_buffer_popF );
-   data.kernel_follower.setArg( 3, data.population_follower_size * data.follower_dimension * sizeof( real_t ), NULL );
-   data.kernel_follower.setArg( 4, data.population_follower_size * sizeof( real_t ), NULL );
-   data.kernel_follower.setArg( 5, data.population_follower_size * sizeof( int ), NULL );
-   data.kernel_follower.setArg( 6, data.leader_dimension * sizeof( real_t ), NULL );
-   data.kernel_follower.setArg( 7, data.seed_buffer );
-   data.kernel_follower.setArg( 8, data.follower_buffer_vf );
-   data.kernel_follower.setArg( 9, data.follower_buffer_vl );
+   sdata.kernel_follower.setArg( 0, sdata.follower_buffer_popL );
+   sdata.kernel_follower.setArg( 1, sdata.follower_buffer_popLValoresF );
+   sdata.kernel_follower.setArg( 2, sdata.follower_buffer_popF );
+   sdata.kernel_follower.setArg( 3, sdata.population_follower_size * sdata.follower_dimension * sizeof( real_t ), NULL );
+   sdata.kernel_follower.setArg( 4, sdata.population_follower_size * sizeof( real_t ), NULL );
+   sdata.kernel_follower.setArg( 5, sdata.population_follower_size * sizeof( int ), NULL );
+   sdata.kernel_follower.setArg( 6, sdata.leader_dimension * sizeof( real_t ), NULL );
+   sdata.kernel_follower.setArg( 7, sdata.seed_buffer );
+   sdata.kernel_follower.setArg( 8, sdata.follower_buffer_vf );
+   sdata.kernel_follower.setArg( 9, sdata.follower_buffer_vl );
 
-   data.kernel_leader.setArg( 0, data.follower_buffer_popL );
-   data.kernel_leader.setArg( 1, data.follower_buffer_popLValoresF );
-   data.kernel_leader.setArg( 2, data.follower_buffer_vf );
-   data.kernel_leader.setArg( 3, data.follower_buffer_vl );
-   data.kernel_leader.setArg( 4, data.leader_buffer_fit_popL );
-   data.kernel_leader.setArg( 5, data.leader_buffer_fit_popLValoresF );
+   sdata.kernel_leader.setArg( 0, sdata.follower_buffer_popL );
+   sdata.kernel_leader.setArg( 1, sdata.follower_buffer_popLValoresF );
+   sdata.kernel_leader.setArg( 2, sdata.follower_buffer_vf );
+   sdata.kernel_leader.setArg( 3, sdata.follower_buffer_vl );
+   sdata.kernel_leader.setArg( 4, sdata.leader_buffer_fit_popL );
+   sdata.kernel_leader.setArg( 5, sdata.leader_buffer_fit_popLValoresF );
 }
 
 /** ****************************************************************** **/
@@ -892,7 +892,7 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
 
    // Get the executable directory so we can find the kernels later, regardless
    // of the current directory (user directory).
-   data.executable_directory = getAbsoluteDirectory(argv[0]);
+   sdata.executable_directory = getAbsoluteDirectory(argv[0]);
 
    Opts.Bool.Add( "-v", "--verbose" );
 
@@ -914,7 +914,7 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
 
    //TODO: checar valores com a Jaque
    Opts.Float.Add( "-cr", "--crossover-rate", 0.90, 0.0, 1.0 );
-   Opts.Float.Add( "-f", "--constant-f", 0.80, 0.5, 1.0 );
+   Opts.Float.Add( "-f", "--constant-f", 0.80, 0.1, 1.0 );
 
    //TODO
    Opts.String.Add( "-variant", "", "RAND", "rand", "TARGET_TO_RAND", "target_to_rand", NULL );
@@ -923,15 +923,15 @@ int acc_follower_init( int argc, char** argv, int r, int p, int q, int s )
 
    Opts.Process();
 
-   data.verbose = Opts.Bool.Get("-v");
+   sdata.verbose = Opts.Bool.Get("-v");
 
-   data.num_generation_follower = Opts.Int.Get("-gf");
-   data.population_follower_size = Opts.Int.Get("-pfs");
+   sdata.num_generation_follower = Opts.Int.Get("-gf");
+   sdata.population_follower_size = Opts.Int.Get("-pfs");
 
-   data.population_leader_size = Opts.Int.Get("-pls");
+   sdata.population_leader_size = Opts.Int.Get("-pls");
 
-   data.leader_dimension = Opts.Int.Get("-dl");
-   data.follower_dimension = Opts.Int.Get("-df");
+   sdata.leader_dimension = Opts.Int.Get("-dl");
+   sdata.follower_dimension = Opts.Int.Get("-df");
 
    cl_device_type type = CL_INVALID_DEVICE_TYPE;
    if( Opts.String.Found("-type") )
@@ -978,7 +978,7 @@ void acc_seed()
    try 
    {
       // ---------- begin kernel execution
-      data.queue.enqueueNDRangeKernel( data.kernel_seed, cl::NDRange(), cl::NDRange( data.global_size ), cl::NDRange(), NULL );
+      sdata.queue.enqueueNDRangeKernel( sdata.kernel_seed, cl::NDRange(), cl::NDRange( sdata.global_size ), cl::NDRange(), NULL );
    }
    catch( cl::Error& e )
    {
@@ -986,17 +986,17 @@ void acc_seed()
       throw;
    }
    // Wait until the kernel has finished
-   data.queue.finish();
+   sdata.queue.finish();
 }
 
 // -----------------------------------------------------------------------------
 void acc_follower( int initialization )
 {
-   data.kernel_follower.setArg( 10, initialization );
+   sdata.kernel_follower.setArg( 10, initialization );
 
    try {
       // Begin kernel execution
-      data.queue.enqueueNDRangeKernel( data.kernel_follower, cl::NDRange(), cl::NDRange( data.global_size ), cl::NDRange( data.local_size ), NULL );
+      sdata.queue.enqueueNDRangeKernel( sdata.kernel_follower, cl::NDRange(), cl::NDRange( sdata.global_size ), cl::NDRange( sdata.local_size ), NULL );
    }
    catch( cl::Error& e )
    {
@@ -1004,7 +1004,7 @@ void acc_follower( int initialization )
       throw;
    }
    // Wait until the kernel has finished
-   data.queue.finish();
+   sdata.queue.finish();
 }
 
 // -----------------------------------------------------------------------------
@@ -1014,11 +1014,11 @@ void acc_leader( int generation
 //#endif
                )
 {
-   data.kernel_leader.setArg( 6, generation );
+   sdata.kernel_leader.setArg( 6, generation );
 
    try {
       // Begin kernel execution
-      data.queue.enqueueNDRangeKernel( data.kernel_leader, cl::NDRange(), cl::NDRange( data.population_leader_size ), cl::NDRange(), NULL );
+      sdata.queue.enqueueNDRangeKernel( sdata.kernel_leader, cl::NDRange(), cl::NDRange( sdata.population_leader_size ), cl::NDRange(), NULL );
    }
    catch( cl::Error& e )
    {
@@ -1026,13 +1026,13 @@ void acc_leader( int generation
       throw;
    }
    // Wait until the kernel has finished
-   data.queue.finish();
+   sdata.queue.finish();
 
 //#if ! defined( PROFILING )
-   data.queue.enqueueReadBuffer( data.leader_buffer_fit_popL, CL_TRUE, 0, data.population_leader_size * sizeof( real_t ), fit_popL );
-   data.queue.enqueueReadBuffer( data.leader_buffer_fit_popLValoresF, CL_TRUE, 0, data.population_leader_size * sizeof( real_t ), fit_popLValoresF );
-   data.queue.enqueueReadBuffer( data.follower_buffer_popL, CL_TRUE, 0, data.population_leader_size * data.leader_dimension * sizeof( real_t ), popL );
-   data.queue.enqueueReadBuffer( data.follower_buffer_popLValoresF, CL_TRUE, 0, data.population_leader_size * data.follower_dimension * sizeof( real_t ), popLValoresF );
+   sdata.queue.enqueueReadBuffer( sdata.leader_buffer_fit_popL, CL_TRUE, 0, sdata.population_leader_size * sizeof( real_t ), fit_popL );
+   sdata.queue.enqueueReadBuffer( sdata.leader_buffer_fit_popLValoresF, CL_TRUE, 0, sdata.population_leader_size * sizeof( real_t ), fit_popLValoresF );
+   sdata.queue.enqueueReadBuffer( sdata.follower_buffer_popL, CL_TRUE, 0, sdata.population_leader_size * sdata.leader_dimension * sizeof( real_t ), popL );
+   sdata.queue.enqueueReadBuffer( sdata.follower_buffer_popLValoresF, CL_TRUE, 0, sdata.population_leader_size * sdata.follower_dimension * sizeof( real_t ), popLValoresF );
 //#endif
 }
 
