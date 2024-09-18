@@ -260,6 +260,7 @@ int best_individual(int idx, double** popL, double** popLValoresF)
 {
    for( int i = 1; i < SIZEL; i++ )
    {
+      //if( (popL[i][DIML] <= popL[idx][DIML]) )
       if( (popL[i][DIML] <= popL[idx][DIML]) && (popLValoresF[i][DIMF] <= popLValoresF[idx][DIMF]) )
       {     
          idx = i;
@@ -367,6 +368,7 @@ int main(int argc, char *argv[]){
 
          calculaAptidao(u, DIML, 1, u, uF);
                                    				
+	   	//if(compara(u, popL[i], DIML, 1) > 0){
 	   	if(compara(u, popL[i], DIML, 1) > 0 && compara(uF, popLValoresF[i], DIMF, 2) > 0){
 	   		for(int j = 0; j < DIML + 2; j++){
 	   			popLNova[i][j] = u[j];
