@@ -21,7 +21,7 @@ if(DEFINED Poco_DIR)
    endif()
 
    # Try to find the path where the header Poco.h is found
-   find_path(Poco_INCLUDE_DIR Poco/Poco.h PATHS "${Poco_DIR}" "${Poco_DIR}/include")
+   find_path(Poco_INCLUDE_DIR Poco/Poco.h PATHS "${Poco_DIR}" "${Poco_DIR}/Foundation/include")
    # Try to find the POCO C++ libraries
    find_package(Poco PATHS "${Poco_DIR}" COMPONENTS Foundation Net Util REQUIRED)
 else()
