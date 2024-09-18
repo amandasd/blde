@@ -67,27 +67,8 @@ void blde_init( int argc, char** argv )
    int q; int s;
    if( Opts.String.Get("-function") == "1006" )
    {
-      if ( sdata.leader_dimension + sdata.follower_dimension == 5 )
-      {
-         r = 1;
-         p = 1;
-         q = 1;
-         s = 1;
-      } else if ( sdata.leader_dimension + sdata.follower_dimension == 10 )
-      {
-         q = 2;
-         s = 1;
-      } else if ( sdata.leader_dimension + sdata.follower_dimension == 20 )
-      {
-         q = 3;
-         s = 2;
-      } else if ( sdata.leader_dimension + sdata.follower_dimension == 64 )
-      {
-         q = 7;
-         s = 9;
-      }
-      //p = floor( ( sdata.follower_dimension - r )/2. - EPS );
-      //s = ceil(  ( sdata.follower_dimension - r )/2. + EPS );
+      q = floor( ( sdata.follower_dimension - r )/2. - EPS );
+      s = ceil(  ( sdata.follower_dimension - r )/2. + EPS );
    }
    else
    {
@@ -130,8 +111,8 @@ int best_individual(int idx, real_t* fit_popL, real_t* fit_popLValoresF)
       // They do not have any restriction. 
       // Option #1
       //if( (fit_popL[i] > 0.) && (fit_popLValoresF[i] > 0.) ) {
-      if( (fit_popL[i] <= fit_popL[idx]) ) { idx = i; }
-      //if( (fit_popL[i] <= fit_popL[idx]) && (fit_popLValoresF[i] <= fit_popLValoresF[idx]) ) { idx = i; }
+      //if( (fit_popL[i] <= fit_popL[idx]) ) { idx = i; }
+      if( (fit_popL[i] <= fit_popL[idx]) && (fit_popLValoresF[i] <= fit_popLValoresF[idx]) ) { idx = i; }
       //}
       // Option #2
       //if( (fit_popL[i] <= fit_popL[idx_level_1]) ) { idx_level_1 = i; }
