@@ -769,9 +769,8 @@ void calculaFuncao(double *ind, int d, int nivel, double *leader, double *follow
                     for (int i = 0 ; i < q ; i++){
                         sum += ( (y[i]*y[i]) );
                     }                     
-                    // !! O 'SUM2' FOI ALTERADO DA REF ORIGINAL !!!!!!!!
                     sum2 = 0.0;
-                    for (int i = q ; i < q+s ; i = i+2){
+                    for (int i = q ; i < q+s-1 ; i = i+2){
                         sum2 += ( (y[i+1] - y[i])*(y[i+1] - y[i]) );
                     }      
                     F2 =  sum + sum2;
