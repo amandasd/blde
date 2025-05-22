@@ -20,7 +20,7 @@
 
 using namespace std;
 
-namespace { static struct t_data { int num_generation_leader; int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; bool verbose;
+namespace { static struct t_data { int num_generation_leader; int population_leader_size; int population_follower_size; int leader_dimension; int follower_dimension; int n_followers; int n_cycles; bool verbose;
 #ifdef PROFILING
 double time_init; double time_seed; double time_initialization; double time_follower; double time_leader;
 #endif
@@ -44,6 +44,9 @@ void blde_init( int argc, char** argv )
    Opts.Int.Add( "-dl", "--dimension-leader", 8, 0, std::numeric_limits<int>::max() );
    Opts.Int.Add( "-df", "--dimension-follower", 8, 0, std::numeric_limits<int>::max() );
 
+   Opts.Int.Add( "-nf", "--number-of-followers", 1, 1, std::numeric_limits<int>::max() );
+   Opts.Int.Add( "-nc", "--number-of-cycles", 1, 1, std::numeric_limits<int>::max() );
+
    Opts.Int.Add( "-t", "--threads", -1, 0);
 
    Opts.String.Add( "-function", "", "", "1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008", NULL );
@@ -61,6 +64,9 @@ void blde_init( int argc, char** argv )
 
    sdata.leader_dimension = Opts.Int.Get("-dl");
    sdata.follower_dimension = Opts.Int.Get("-df");
+
+   sdata.n_followers = Opts.Int.Get("-nf");
+   sdata.n_cycles = Opts.Int.Get("-nc");
 
    int r = floor( sdata.leader_dimension/2. );
    int p = sdata.leader_dimension - r;
@@ -111,8 +117,8 @@ int best_individual(int idx, real_t* fit_popL, real_t* fit_popLValoresF)
       // They do not have any restriction. 
       // Option #1
       //if( (fit_popL[i] > 0.) && (fit_popLValoresF[i] > 0.) ) {
-      //if( (fit_popL[i] <= fit_popL[idx]) ) { idx = i; }
-      if( (fit_popL[i] <= fit_popL[idx]) && (fit_popLValoresF[i] <= fit_popLValoresF[idx]) ) { idx = i; }
+      if( (fit_popL[i] <= fit_popL[idx]) ) { idx = i; }
+      //if( (fit_popL[i] <= fit_popL[idx]) && (fit_popLValoresF[i] <= fit_popLValoresF[idx]) ) { idx = i; }
       //}
       // Option #2
       //if( (fit_popL[i] <= fit_popL[idx_level_1]) ) { idx_level_1 = i; }
@@ -133,10 +139,10 @@ void blde_evolve()
 #endif
 
 //#if ! defined( PROFILING )
-   real_t* popL = new real_t[sdata.population_leader_size * sdata.leader_dimension]; 
-   real_t* popLValoresF = new real_t[sdata.population_leader_size * sdata.follower_dimension];
-   real_t* fit_popL = new real_t[sdata.population_leader_size]; 
-   real_t* fit_popLValoresF = new real_t[sdata.population_leader_size]; 
+   real_t* popL = new real_t[sdata.population_leader_size * sdata.leader_dimension];
+   real_t* popLValoresF = new real_t[sdata.population_leader_size * sdata.follower_dimension * sdata.n_followers];
+   real_t* fit_popL = new real_t[sdata.population_leader_size];
+   real_t* fit_popLValoresF = new real_t[sdata.population_leader_size * sdata.n_followers];
 //#endif
 
 #ifdef PROFILING
@@ -152,26 +158,35 @@ void blde_evolve()
 #endif
    // popL and popLValoresF initialization
    // start
-   acc_follower( 1 );
+   acc_leader( 1 );
+   for( int c = 0; c < sdata.n_cycles; c++ )
+   {
+      acc_follower( 1 );
+   }
    // popL and popLValoresF initialization
    // end
 #ifdef PROFILING
    sdata.time_initialization = t_initialization.elapsed();
 #endif
 
-   bool stop_fit = false; bool stop_stag = false; bool stop_eps = false;
+   //bool stop_fit = false; bool stop_stag = false;
+   bool stop_eps = false;
    int idx = 0; int g; int stagnation_tolerance = 0;
-   int nEval_level_1 = sdata.population_leader_size; // acc_leader(g=0)
-   int nEval_level_2 = ( 2*sdata.population_follower_size*sdata.population_leader_size ) + ( sdata.population_leader_size ); // ( acc_follower(1) ) + ( acc_leader(g=0) )
-	for( g = 0; !stop_eps && ( g < sdata.num_generation_leader ); g++ )
-	//for( g = 0; ( g < sdata.num_generation_leader ) && ( nEval_level_1 + nEval_level_2 < nEval ) && !stop_fit && !stop_stag; g++ )
+   int nEval_level_1 = sdata.population_leader_size; // acc_evaluate(g=0)
+   int nEval_level_2 = ( 2*sdata.population_follower_size*sdata.population_leader_size*sdata.n_followers ) + ( sdata.population_leader_size*sdata.n_followers ); // ( acc_follower(1) ) + ( acc_evaluate(g=0) )
+   for( g = 0; !stop_eps && ( g < sdata.num_generation_leader ); g++ )
+   //for( g = 0; ( g < sdata.num_generation_leader ) && ( nEval_level_1 + nEval_level_2 < nEval ) && !stop_fit && !stop_stag; g++ )
    {  
 #ifdef PROFILING
       util::Timer t_follower;
 #endif
       // for each uL there is a uF
       // POPL_SIZE uLs run simultaneously, so at the end you have POPL_SIZE uFs 
-      acc_follower( 0 );
+      acc_leader( 0 );
+      for( int c = 0; c < sdata.n_cycles; c++ )
+      {
+         acc_follower( 0 );
+      }
 #ifdef PROFILING
       sdata.time_follower += t_follower.elapsed();
 #endif
@@ -180,7 +195,7 @@ void blde_evolve()
       util::Timer t_leader;
 #endif
       // compare each new pair (uL, uF) with its respective old ones (popL, popLValoresF)
-      acc_leader( g
+      acc_evaluate( g
 //#if ! defined( PROFILING )
                   , fit_popL, fit_popLValoresF, popL, popLValoresF
 //#endif
@@ -191,32 +206,39 @@ void blde_evolve()
 
       // testa criterio de parada
       // start
-      nEval_level_1 += sdata.population_leader_size; // acc_leader
-      nEval_level_2 += ( 2*sdata.population_follower_size*sdata.population_leader_size ) + ( sdata.population_leader_size ); // ( acc_follower ) + ( acc_leader )
+      nEval_level_1 += sdata.population_leader_size; // acc_evaluate
+      nEval_level_2 += ( 2*sdata.population_follower_size*sdata.population_leader_size*sdata.n_followers ) + ( sdata.population_leader_size*sdata.n_followers ); // ( acc_follower ) + ( acc_evaluate )
 
 //#if ! defined( PROFILING )
       //printf( "\n[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d :: %d", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag, stop_eps ); 
-		int idx_new = best_individual( idx, fit_popL, fit_popLValoresF );
+      int idx_new = best_individual( idx, fit_popL, fit_popLValoresF );
 
       if( idx_new == idx ) stagnation_tolerance++;
       else stagnation_tolerance = 0;
 
       idx = idx_new;
-      if( (fabs(fit_popL[idx]) <= alpha_leader) && (fabs(fit_popLValoresF[idx]) <= alpha_follower) ) stop_fit = true;
-      if( stagnation_tolerance > stag ) stop_stag = true;
+      //if( (fabs(fit_popL[idx]) <= alpha_leader) && (fabs(fit_popLValoresF[idx]) <= alpha_follower) ) stop_fit = true;
+      //if( stagnation_tolerance > stag ) stop_stag = true;
       // testa criterio de parada
       // end
 
       if (sdata.verbose)
       {
-         printf( "\n[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d :: %d", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag, stop_eps ); 
+         printf( "\n[%d] %.12f", g, fit_popL[idx] );
+         for( int f = 0; f < sdata.n_followers; f++ ){
+            printf( " ::[%d] %.12f", idx, fit_popLValoresF[(idx * sdata.n_followers) + f] );
+         }
+         printf( " :: %d :: %d :: %d", nEval_level_1, nEval_level_2, stop_eps );
          cout << "\n[Leader] ";
          for( int j = 0; j < sdata.leader_dimension; j++ ){
             cout << popL[idx + j * sdata.population_leader_size] << " ";
          }
          cout << "\n[Follower] ";
-         for( int j = 0; j < sdata.follower_dimension; j++ ){
-            cout << popLValoresF[idx + j * sdata.population_leader_size] << " ";
+         for( int f = 0; f < sdata.n_followers; f++ ){
+            cout << "[" << f << "] ";
+            for( int j = 0; j < sdata.follower_dimension; j++ ){
+               cout << popLValoresF[f * sdata.population_leader_size * sdata.follower_dimension + idx + j * sdata.population_leader_size] << " ";
+            }
          }
          cout << endl;
       }
@@ -226,7 +248,7 @@ void blde_evolve()
       }
       if (sqrt(eps) < 0.01) { stop_eps = true; }
 //#endif
-	}
+   }
    if (sdata.verbose) printf( "\n" ); 
 
 #ifdef PROFILING
@@ -234,9 +256,13 @@ void blde_evolve()
 #endif
 
 //#if ! defined( PROFILING )
-   if (sdata.verbose){ 
-	   idx = best_individual( idx, fit_popL, fit_popLValoresF );
-      printf( "[%d] %.12f :: %.12f :: %d :: %d :: %d :: %d :: %d\n", g, fit_popL[idx], fit_popLValoresF[idx], nEval_level_1, nEval_level_2, stop_fit, stop_stag, stop_eps ); 
+   if (sdata.verbose){
+      idx = best_individual( idx, fit_popL, fit_popLValoresF );
+      printf( "[%d] %.12f", g, fit_popL[idx] );
+      for( int f = 0; f < sdata.n_followers; f++ ){
+         printf( " :: %.12f", fit_popLValoresF[(idx * sdata.n_followers) + f] );
+      }
+      printf( " :: %d :: %d :: %d\n", nEval_level_1, nEval_level_2, stop_eps ); 
    }
 
    delete[] popL;

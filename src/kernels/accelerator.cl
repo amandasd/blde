@@ -1,29 +1,16 @@
 __kernel void 
 seed(int seed, __global uint* seed_global)
 {
-   int gl_id = get_global_id(0); //POPL_SIZE * POPF_SIZE
+   int gl_id = get_global_id(0); //POPL_SIZE * POPF_SIZE * NF
    seed_global[gl_id] = lcg( seed + gl_id + 1 ); // Make each work-item random stream have a different seed
 }
 
 __kernel void
-follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t* gl_popF, __local real_t* lo_popF, __local real_t* fit_popF, __local int* best_idx, __local real_t* uL, __global uint* seed_global, __global real_t* VF, __global real_t* VL, int initialization )
+leader( __global real_t* popL, __global uint* seed_global, __global real_t* VL, int initialization )
 {
-   int lo_id = get_local_id(0); //number of work itens -> <= POPF_SIZE
-   int gr_id = get_group_id(0); //number of groups -> POPL_SIZE
-   int gl_id = get_global_id(0); //POPL_SIZE * POPF_SIZE
-
-   int lo_size = get_local_size(0);
+   int gl_id = get_global_id(0); //POPL_SIZE
 
    uint seed = seed_global[gl_id];
-
-   int n;
-
-   __local int idx[3]; 
-
-   // 1 uL by group -> uL is represented by gr_id 
-   // each group has #local_size work itens (lo_id)
-   // local_size can be <= POPF_SIZE and local_size can be < DIML or DIMF.
-
 
    if( initialization )
    {
@@ -32,83 +19,135 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
       // solution S is a array of size D
       // popL => S0D0 | S1D0 | S2D0 | ... | S0D1 | S1D1 | S2D1 | ... 
       // popL -> POPL_SIZE * DIML
-      // gr_id -> solution S (S0, S1, S2, ...)
-      // lo_id -> dimension D (D0, D1, D2, ...)
-      for( int j = 0; j < (int) ceil(DIML/(real_t)lo_size); ++j )
+      // gl_id -> solution S (S0, S1, S2, ...)
+      for( int j = 0; j < DIML; j++ )
       {
-         n = j * lo_size + lo_id;
-         if( n < DIML )
-         { 
-            uL[n] = getLower_level_1( n ) + Real( &seed )*(getUpper_level_1( n ) - getLower_level_1( n )); //UPPER - LOWER
-            popL[gr_id + n * POPL_SIZE] = uL[n];
-         }
+         popL[gl_id + j * POPL_SIZE] = getLower_level_1( j ) + Real( &seed )*(getUpper_level_1( j ) - getLower_level_1( j )); //UPPER - LOWER
+         // initialization of popL
+         // end
       }
-      // initialization of popL
-      // end
    }
    else
    {
-      // leader generation -> uL is represented by gr_id
       // start
-      // TODO: considerar a possibilidade de tirar esses loops
-      if( lo_id == 0 )
+      real_t uL[DIML];
+
+      int idx1;
+      do
       {
-	      do
-         {
-	      	idx[0] = Int( &seed, POPL_SIZE );
-	      } while(idx[0] == gr_id);
-	      do
-         {
-	      	idx[1] = Int( &seed, POPL_SIZE );
-	      } while(idx[1] == gr_id || idx[1] == idx[0]);
-	      do
-         {
-	      	idx[2] = Int( &seed, POPL_SIZE );
-	      } while(idx[2] == gr_id || idx[2] == idx[0] || idx[2] == idx[1]);
-      }
-      barrier(CLK_LOCAL_MEM_FENCE);
+         idx1 = Int( &seed, POPL_SIZE );
+      } while(idx1 == gl_id);
+      int idx2;
+      do
+      {
+         idx2 = Int( &seed, POPL_SIZE );
+      } while(idx2 == gl_id || idx2 == idx1);
+      int idx3;
+      do
+      {
+         idx3 = Int( &seed, POPL_SIZE );
+      } while(idx3 == gl_id || idx3 == idx1 || idx3 == idx2);
 
       // solution S is a array of size D
       // popL => S0D0 | S1D0 | S2D0 | ... | S0D1 | S1D1 | S2D1 | ... 
       // popL -> POPL_SIZE * DIML
       // idx -> solution S (S0, S1, S2, ...)
-      // lo_id -> dimension D (D0, D1, D2, ...)
       int jRand = Int( &seed, DIML );
-      for( int j = 0; j < (int) ceil(DIML/(real_t)lo_size); ++j )
+      for( int j = 0; j < DIML; j++ )
       {
-         n = j * lo_size + lo_id;
-         if( n < DIML )
-         { 
-            if( n == jRand || (Real( &seed ) < CR) )
-            {	
+         if( j == jRand || (Real( &seed ) < CR) )
+         {
 #if defined(VARIANT_rand) //DE/rand/1/bin
-               uL[n] = popL[idx[0] + n * POPL_SIZE] + F*(popL[idx[1] + n * POPL_SIZE] - popL[idx[2] + n * POPL_SIZE]); 
+            uL[j] = popL[idx1 + j * POPL_SIZE] + F*(popL[idx2 + j * POPL_SIZE] - popL[idx3 + j * POPL_SIZE]); 
 #elif defined(VARIANT_target_to_rand) //DE/target-to-rand/1/bin
-               uL[n] = popL[gr_id + n * POPL_SIZE] + F*(popL[idx[0] + n * POPL_SIZE] - popL[gr_id + n * POPL_SIZE]) + F*(popL[idx[1] + n * POPL_SIZE] - popL[idx[2] + n * POPL_SIZE]); 
+            uL[j] = popL[gl_id + j * POPL_SIZE] + F*(popL[idx1 + j * POPL_SIZE] - popL[gl_id + j * POPL_SIZE]) + F*(popL[idx2 + j * POPL_SIZE] - popL[idx3 + j * POPL_SIZE]); 
 #else
-               "Variant not supported"
+            "Variant not supported"
 #endif
-               if( uL[n] < getLower_level_1( n ) )
-               {
-                  uL[n] = getLower_level_1( n );
-               }
-               else 
-               {
-                  if( uL[n] > getUpper_level_1( n ) )
-                  {
-                     uL[n] = getUpper_level_1( n );
-                  }
-               }
-            } 
+            if( uL[j] < getLower_level_1( j ) )
+            {
+               uL[j] = getLower_level_1( j );
+            }
             else 
             {
-               uL[n] = popL[gr_id + n * POPL_SIZE]; 
+               if( uL[j] > getUpper_level_1( j ) )
+               {
+                  uL[j] = getUpper_level_1( j );
+               }
             }
+         }
+         else
+         {
+            uL[j] = popL[gl_id + j * POPL_SIZE]; 
+         }
+         VL[gl_id + j * POPL_SIZE] = uL[j];
+      }
+   }
+   // end
+}
+
+__kernel void
+follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t* gl_popF, __local real_t* lo_popF, __local real_t* fit_popF, __local int* best_idx, __local real_t* uL, __local real_t* uFs, __global uint* seed_global, __global real_t* VF, __global real_t* VL, int initialization, int follower )
+{
+   int lo_id = get_local_id(0); //number of work itens -> <= POPF_SIZE
+   int gr_id = get_group_id(0); //number of groups -> POPL_SIZE * NF
+   int gl_id = get_global_id(0); //POPL_SIZE * POPF_SIZE * NF
+
+   int lo_size = get_local_size(0);
+
+   uint seed = seed_global[gl_id];
+
+   int n;
+
+   // 1 (uL, follower) by group -> uL is represented by (gr_id % POPL_SIZE) 
+   // each group has #local_size work itens (lo_id)
+   // local_size can be <= POPF_SIZE and local_size can be < DIML or DIMF.
+   //
+   // solution S is a array of size D
+   // popL => S0D0 | S1D0 | S2D0 | ... | S0D1 | S1D1 | S2D1 | ... 
+   // popL -> POPL_SIZE * DIML
+   // gr_id -> solution S (S0, S1, S2, ...)
+   // lo_id -> dimension D (D0, D1, D2, ...)
+   for( int j = 0; j < (int) ceil(DIML/(real_t)lo_size); ++j )
+   {
+      n = j * lo_size + lo_id;
+      if( n < DIML )
+      {
+         if( initialization )
+         {
+            uL[n] = popL[(gr_id % POPL_SIZE) + n * POPL_SIZE];
+         }
+         else
+         {
+            uL[n] = VL[(gr_id % POPL_SIZE) + n * POPL_SIZE];
          }
       }
    }
-   // leader generation -> uL
-   // end
+
+   // popLValoresF contains the best solution for each (uL=S, follower=F) population
+   // popLValoreF => S0D0F0 | S1D0F0 | S2D0F0 | ... | S0D1F0 | S1D1F0 | S2D1F0 | ... | S0D0F1 ...
+   // For a given uL, uFs contains the best solution for each follower
+   // uFs => D0F0 | D1F0 | D2F0 | ... | D0F1 | D1F1 | D2F1 | ... | D0F2 ...
+   // lo_id -> dimension D (D0, D1, D2, ...)
+   //for( int j = 0; j < (int) ceil(DIMF/(real_t)lo_size); ++j )
+   //{
+   //   n = j * lo_size + lo_id;
+   //   if( n < DIMF )
+   //   {
+   //      // TODO: pensar qdo NF = 1, generalizar
+   //      for( int f = 0; f < NF; ++f )
+   //      {
+   //         if( initialization )
+   //         {
+   //            uFs[f * DIMF + n] = getLower_level_2( n ) + Real( &seed )*(getUpper_level_2( n ) - getLower_level_2( n )); //UPPER - LOWER2
+   //         }
+   //         else
+   //         {
+   //            uFs[f * DIMF + n] = popLValoresF[f * POPL_SIZE * DIMF + (gr_id % POPL_SIZE) + n * POPL_SIZE]; 
+   //         }
+   //      }
+   //   }
+   //}
 
    // local_size can be <= POPF_SIZE. POPF_SIZE > local_size when max_local_size < POPF_SIZE.
    // the total number of uFs is equal POPF_SIZE.
@@ -136,6 +175,8 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          // start
          // fit_popF -> size of POPF_SIZE
          fit_popF[n] = evaluate_transpose_follower_level_2(n, uL, lo_popF);
+         // TODO: seguidores dependentes; pensar qdo NF = 1, e generalizar
+         //fit_popF[n] = evaluate_transpose_follower_level_2(n, uL, uFs, lo_popF, follower);
          // follower population evaluation -> popF
          // end
       }
@@ -155,18 +196,17 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
             // follower generation -> uF is represented by lo_id (here n)
             // lo_id (here n) is a follower uF
             // start
-            // TODO: considerar a possibilidade de tirar esses loops
-            int idx1; 
+            int idx1;
             do
             {
                idx1 = Int( &seed, POPF_SIZE );
             } while(idx1 == n);
-            int idx2; 
+            int idx2;
             do
             {
                idx2 = Int( &seed, POPF_SIZE );
             } while(idx2 == n || idx2 == idx1);
-            int idx3; 
+            int idx3;
             do
             {
                idx3 = Int( &seed, POPF_SIZE );
@@ -237,14 +277,14 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
                fit_popF[n] = fit_popF_new;
                for( int i = 0; i < DIMF; i++ )
                {
-                  gl_popF[gr_id * (POPF_SIZE * DIMF) + n + i * POPF_SIZE] = lo_popF[n + i * POPF_SIZE];
+                  gl_popF[gr_id * (POPF_SIZE * DIMF) + n + (i * POPF_SIZE)] = lo_popF[n + (i * POPF_SIZE)];
                }
             } 
             else 
             {
                for( int i = 0; i < DIMF; i++ )
                {
-                  lo_popF[n + i * POPF_SIZE] = gl_popF[gr_id * (POPF_SIZE * DIMF) + n + i * POPF_SIZE];
+                  lo_popF[n + (i * POPF_SIZE)] = gl_popF[gr_id * (POPF_SIZE * DIMF) + n + (i * POPF_SIZE)];
                }
             }
             // new generation
@@ -263,11 +303,10 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
       seed_global[gl_id] = seed;
    }
 
-   // reduction: best individual for each uL or group gr_id
+   // reduction: best individual for each (uL, follower) or group gr_id
    // start
    // number of groups -> POPL_SIZE
    // VF -> POPL_SIZE * DIMF
-   // VL -> POPL_SIZE * DIML
    for( int j = 0; j < (int) ceil(POPF_SIZE/(real_t)lo_size); ++j )
    {
       n = j * lo_size + lo_id;
@@ -293,14 +332,15 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
    // TODO
    barrier(CLK_LOCAL_MEM_FENCE);
 
+   // TODO: rever organizacao de popLValoresF, VF e VL, popL
    if( initialization )
    {
       for( int j = 0; j < (int) ceil(DIMF/(real_t)lo_size); ++j )
       {
          n = j * lo_size + lo_id;
          if( n < DIMF )
-         { 
-            popLValoresF[gr_id + n * POPL_SIZE] = lo_popF[best_idx[0] + n * POPF_SIZE];
+         {
+            popLValoresF[follower * POPL_SIZE * DIMF + (gr_id % POPL_SIZE) + (n * POPL_SIZE)] = lo_popF[best_idx[0] + (n * POPF_SIZE)];
          }
       }
    }
@@ -311,15 +351,7 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
          n = j * lo_size + lo_id;
          if( n < DIMF )
          { 
-            VF[gr_id + n * POPL_SIZE] = lo_popF[best_idx[0] + n * POPF_SIZE];
-         }
-      }
-      for( int j = 0; j < (int) ceil(DIML/(real_t)lo_size); ++j )
-      {
-         n = j * lo_size + n;
-         if( n < DIML )
-         { 
-            VL[gr_id + n * POPL_SIZE] = uL[n];
+            VF[follower * POPL_SIZE * DIMF + (gr_id % POPL_SIZE) + (n * POPL_SIZE)] = lo_popF[best_idx[0] + (n * POPF_SIZE)];
          }
       }
    }
@@ -328,36 +360,51 @@ follower( __global real_t* popL, __global real_t* popLValoresF, __global real_t*
 }
 
 __kernel void
-leader( __global real_t* popL, __global real_t* popLValoresF, __global real_t* VF, __global real_t* VL, __global real_t* fit_popL, __global real_t* fit_popLValoresF, int generation )
+evaluate( __global real_t* popL, __global real_t* popLValoresF, __global real_t* VF, __global real_t* VL, __global real_t* fit_popL, __global real_t* fit_popLValoresF, int generation )
 {
    int gl_id = get_global_id(0); //POPL_SIZE
 
    // solution S is a array of size D
-   // popL, popLValoreF, VF e VL => S0D0 | S1D0 | S2D0 | ... | S0D1 | S1D1 | S2D1 | ...
+   // popL, VL => S0D0 | S1D0 | S2D0 | ... | S0D1 | S1D1 | S2D1 | ...
+   // popLValoreF, VF => S0D0F0 | S1D0F0 | S2D0F0 | ... | S0D1F0 | S1D1F0 | S2D1F0 | ... | S0D0F1 ...
    // gl_id -> solution S (S0, S1, S2, ...) of POPL
 
-   real_t fit_VL = evaluate_transpose_leader_level_1( gl_id, VL, VF );
-   real_t fit_VF = evaluate_transpose_leader_level_2( gl_id, VL, VF );
-   if( generation == 0 ) 
+   real_t fit_VF[NF];
+   real_t fit_VL = 0.;
+   for( int follower = 0; follower < NF; follower++ )
    {
-      fit_popL[gl_id] = evaluate_transpose_leader_level_1( gl_id, popL, popLValoresF );
-      fit_popLValoresF[gl_id] = evaluate_transpose_leader_level_2( gl_id, popL, popLValoresF );
+      fit_VL += evaluate_transpose_leader_level_1( gl_id, VL, VF, follower );
+      fit_VF[follower] = evaluate_transpose_leader_level_2( gl_id, VL, VF, follower );
    }
 
-	//if( fit_VL <= fit_popL[gl_id] )
-	if( fit_VL <= fit_popL[gl_id] && fit_VF <= fit_popLValoresF[gl_id] )
-	//if( fit_VL <= fit_popL[gl_id] && fit_VF <= fit_popLValoresF[gl_id] && fit_VL > 0. && fit_VF > 0. )
+   if( generation == 0 )
+   {
+      fit_popL[gl_id] = 0.;
+      for( int follower = 0; follower < NF; follower++ )
+      {
+         fit_popL[gl_id] += evaluate_transpose_leader_level_1( gl_id, popL, popLValoresF, follower );
+         fit_popLValoresF[(gl_id * NF) + follower] = evaluate_transpose_leader_level_2( gl_id, popL, popLValoresF, follower );
+      }
+   }
+
+   if( fit_VL <= fit_popL[gl_id] )
+   //if( fit_VL <= fit_popL[gl_id] && fit_VF <= fit_popLValoresF[gl_id] )
+   //if( fit_VL <= fit_popL[gl_id] && fit_VF <= fit_popLValoresF[gl_id] && fit_VL > 0. && fit_VF > 0. )
    {
       for( int j = 0; j < DIML; j++ )
       {
-         popL[gl_id + j * POPL_SIZE] = VL[gl_id + j * POPL_SIZE];
-      }
-      for( int j = 0; j < DIMF; j++ )
-      {
-         popLValoresF[gl_id + j * POPL_SIZE] = VF[gl_id + j * POPL_SIZE];
+         popL[gl_id + (j * POPL_SIZE)] = VL[gl_id + (j * POPL_SIZE)];
       }
       fit_popL[gl_id] = fit_VL;
-      fit_popLValoresF[gl_id] = fit_VF;
+      // popLValoreF, VF => S0D0F0 | S1D0F0 | S2D0F0 | ... | S0D1F0 | S1D1F0 | S2D1F0 | ... | S0D0F1 ...
+      for( int follower = 0; follower < NF; follower++ )
+      {
+         for( int j = 0; j < DIMF; j++ )
+         {
+            popLValoresF[(follower * POPL_SIZE * DIMF) + gl_id + (j * POPL_SIZE)] = VF[(follower * POPL_SIZE * DIMF) + gl_id + (j * POPL_SIZE)];
+         }
+         fit_popLValoresF[(gl_id * NF) + follower] = fit_VF[follower];
+      }
    }
 }
 
